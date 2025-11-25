@@ -65,14 +65,19 @@ export function useDocument(uri: string, opts?: UseDocumentOptions) {
       const text =
         typeof nextContent !== "undefined" ? nextContent : content;
       setSaving(true);
+      setError(null);
       try {
         await fileSystemHelper.service.write(uri, text);
         setSavedContent(text);
         dirtyRef.current = false;
         xbook.eventBus.emit(EventKeys.FileSaved);
         xbook.eventBus.emit(EventKeys.FileClean, { uri });
+        xbook.notificationService.success("File saved successfully");
       } catch (e) {
-        setError(String((e as any)?.message || e));
+        const errorMessage = String((e as any)?.message || e);
+        setError(errorMessage);
+        xbook.notificationService.error(`Failed to save file: ${errorMessage}`);
+        console.error("[useDocument] Save failed:", e);
       } finally {
         setSaving(false);
       }

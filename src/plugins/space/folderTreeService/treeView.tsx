@@ -149,6 +149,7 @@ const TreeView = ({ space }: { space: SpaceDef }) => {
         }
         className="fs-tree-container"
         actions={actions}
+        spaceId={space.id}
       >
         <Box h="0.5rem" flexShrink={0} flexGrow={0} />
         <Box w="100%" className="channel-tree flex-container-limited flex-col">

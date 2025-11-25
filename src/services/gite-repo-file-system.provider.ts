@@ -2,12 +2,14 @@ import { Event } from "@/toolkit/vscode/event";
 import { EventEmitter } from "@/toolkit/vscode/event-emitter";
 import {
   FileChangeEvent,
+  FileChangeType,
   FileStat,
   FileSystemProvider,
   FileType,
 } from "@/toolkit/vscode/file-system";
 import { Uri } from "@/toolkit/vscode/uri";
 import { GiteeClient } from "libs/gitee-api";
+import { stagingService } from "@/services/staging.service";
 
 export class GitRepoFileSystemProvider implements FileSystemProvider {
   private onDidChangeFileEmitter: EventEmitter<FileChangeEvent[]> =
@@ -144,29 +146,38 @@ export class GitRepoFileSystemProvider implements FileSystemProvider {
   }
 
   async writeFile(uri: Uri, content: Uint8Array): Promise<void> {
-    const path = uri.path; // 提取 Uri 中的路径
+    const path = uri.path;
     const contentString = new TextDecoder().decode(content);
 
-    const exists = await this.exists(uri);
-    if (!exists) {
-      await this.gitClient.File.add({
+    try {
+      const exists = await this.exists(uri);
+      if (!exists) {
+        console.log(`[GitRepoFS] Creating new file: ${path}`);
+        const result = await this.gitClient.File.add({
+          owner: this.owner,
+          repo: this.repo,
+          path,
+          content: contentString,
+        });
+        console.log(`[GitRepoFS] File created successfully: ${path}`, result);
+        this.onDidChangeFileEmitter.fire([{ type: FileChangeType.Created, uri }]);
+        return;
+      }
+
+      console.log(`[GitRepoFS] Updating file: ${path}`);
+      const result = await this.gitClient.File.update({
         owner: this.owner,
         repo: this.repo,
         path,
         content: contentString,
       });
-      return;
-      
+      console.log(`[GitRepoFS] File updated successfully: ${path}`, result);
+      this.onDidChangeFileEmitter.fire([{ type: FileChangeType.Changed, uri }]);
+    } catch (error: any) {
+      console.error(`[GitRepoFS] Failed to write file: ${path}`, error);
+      const errorMessage = error?.response?.data?.message || error?.message || String(error);
+      throw new Error(`Failed to save file "${path}": ${errorMessage}`);
     }
-    // 使用 GiteeClient 写入文件内容
-    // 实现逻辑以将内容写入文件并处理错误
-
-    await this.gitClient.File.update({
-      owner: this.owner,
-      repo: this.repo,
-      path,
-      content: contentString,
-    });
   }
 
   async delete(uri: Uri, options: { recursive: boolean }): Promise<void> {

@@ -9,6 +9,7 @@ import {
   FileType,
 } from "@/toolkit/vscode/file-system";
 import { Uri } from "@/toolkit/vscode/uri";
+import { stagingService } from "@/services/staging.service";
 
 export class SpaceFileSystemProviderProxy implements FileSystemProvider {
   private readonly _onDidChangeFile = new EventEmitter<
@@ -84,7 +85,23 @@ export class SpaceFileSystemProviderProxy implements FileSystemProvider {
     if (uri.authority !== this.spaceId) {
       throw new Error(`Invalid space ID: ${uri.authority}`);
     }
-    return this.provider.writeFile(uri, content, options);
+
+    const shouldStageOnly = (window as any).__GITARY_STAGE_MODE__ !== false;
+    
+    if (shouldStageOnly) {
+      const exists = options.create === false;
+      stagingService.addFile(
+        this.spaceId,
+        uri,
+        content,
+        exists ? "update" : "add"
+      );
+      console.log(`[SpaceFS] File staged: ${uri.path} (space: ${this.spaceId})`);
+      this._onDidChangeFile.fire([{ type: FileChangeType.Changed, uri }]);
+      return Promise.resolve();
+    } else {
+      return this.provider.writeFile(uri, content, options);
+    }
   }
 
   // 文件删除
