@@ -1,9 +1,25 @@
+import { getBaseUrl, isProductionDomain } from '@/core/utils/domain-config';
+
 const env = (import.meta as any).env || {};
+
+const getRedirectUri = (): string => {
+  const envRedirectUri = env.VITE_GITHUB_REDIRECT_URI;
+  if (envRedirectUri) {
+    let redirectUri = envRedirectUri.trim();
+    if (isProductionDomain() && redirectUri.startsWith('http://')) {
+      redirectUri = redirectUri.replace('http://', 'https://');
+      console.warn('VITE_GITHUB_REDIRECT_URI uses http://, auto-converted to https:// for production');
+    }
+    return redirectUri;
+  }
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}/?platform=github`;
+};
 
 const appInfo = {
   clientId: env.VITE_GITHUB_CLIENT_ID || "",
   clientSecret: env.VITE_GITHUB_CLIENT_SECRET || "",
-  redirectUri: env.VITE_GITHUB_REDIRECT_URI || "",
+  redirectUri: getRedirectUri(),
 };
 
 if (!appInfo.clientId) {
@@ -16,6 +32,14 @@ if (!appInfo.redirectUri) {
 
 if (!appInfo.clientSecret) {
   console.warn('VITE_GITHUB_CLIENT_SECRET is not configured');
+}
+
+if (import.meta.env?.MODE === 'development') {
+  console.log('GitHub OAuth Config:', {
+    clientId: appInfo.clientId ? `${appInfo.clientId.substring(0, 8)}...` : 'not set',
+    redirectUri: appInfo.redirectUri,
+    hasClientSecret: !!appInfo.clientSecret,
+  });
 }
 
 export { appInfo };
