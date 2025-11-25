@@ -10,7 +10,6 @@ import {
   getGithubLoginUrl,
   refreshGithubAccessToken,
 } from "libs/github-api";
-import { OAuthApp } from "octokit";
 import { createPlugin } from "xbook/common/createPlugin";
 
 export default createPlugin({
@@ -18,28 +17,14 @@ export default createPlugin({
     const callbackTask = createOAuthCallbackTask({
       platform: "github",
       clientId: appInfo.clientId,
-      clientSecret: appInfo.clientSecret,
+      clientSecret: appInfo.clientSecret || "",
       redirectUri: appInfo.redirectUri,
       createToken: async (params) => {
-        const { clientId, clientSecret } = params;
-
-        const app = new OAuthApp({
-          clientId,
-          clientSecret,
-        });
-
-        const repo = localStorage.getItem("authRepo")!;
-        const owner = localStorage.getItem("authOwner")!;
-
-        // const info = await app.octokit.rest.repos.get({
-        //   owner,
-        //   repo,
-        // });
-        // const repoId = await getGithubRepositoryId(owner, repo);
-
         return getGithubAccessToken({
-          ...params,
-          // repository_id: repoId,
+          code: params.code,
+          clientId: params.clientId,
+          clientSecret: params.clientSecret || appInfo.clientSecret,
+          redirectUri: params.redirectUri,
         });
       },
       fetchUserInfo: async ({ accessToken }) => {
@@ -57,7 +42,11 @@ export default createPlugin({
       id: "github",
       platform: "github",
       callbackTaskName: callbackTask.name,
-      refreshAccessToken: refreshGithubAccessToken,
+      refreshAccessToken: async (params) => {
+        return refreshGithubAccessToken({
+          refreshToken: params.refreshToken,
+        });
+      },
       getLoginUrl: () => {
         return getGithubLoginUrl({
           clientId: appInfo.clientId,

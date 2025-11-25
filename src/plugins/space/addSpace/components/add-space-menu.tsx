@@ -20,7 +20,7 @@ import { createGiteeClient } from "libs/gitee-api";
 import { createGithubClient } from "libs/github-api";
 import { createGitcodeClient } from "libs/gitcode-api/gitcode-client";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, GitBranch, Github, Loader2, Sparkles, ArrowRight, Link as LinkIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, GitBranch, Github, Loader2, Sparkles, ArrowRight, Link as LinkIcon, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { forkJoin, from, map, of } from "rxjs";
 import xbook from "xbook";
@@ -229,6 +229,20 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
         }
     };
 
+    const handleGitHubReauth = async () => {
+        const authInfo = authService.getAnyAuthInfo("github");
+        if (authInfo) {
+            const authId = authService.generateAuthId({
+                platform: "github",
+                username: authInfo.username || "",
+            });
+            authService.removeAuthRecord(authId);
+            setGithubRepos([]);
+            setGithubExpanded(false);
+        }
+        await handleGitHubAuth();
+    };
+
     const handleGiteeAuth = async () => {
         if (giteeProvider) {
             await giteeProvider.authenticate({
@@ -420,7 +434,14 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
                     </DropdownMenuItem>
 
                     {githubAuthorized && githubExpanded && (
-                        <div className="ml-6 mr-1 mb-1 rounded-md bg-muted/50 p-2">
+                        <div className="ml-6 mr-1 mb-1 rounded-md bg-muted/50 p-2 space-y-2">
+                            <button
+                                onClick={handleGitHubReauth}
+                                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                                <RefreshCw className="h-3 w-3" />
+                                <span>{t("space.reauthorize") || "重新授权"}</span>
+                            </button>
                             <Command className="bg-transparent">
                                 <CommandInput
                                     placeholder={t("space.searchRepository")}

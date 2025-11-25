@@ -136,28 +136,24 @@ export const getGithubAccessToken = async ({
   clientId,
   clientSecret,
   redirectUri,
-}: // repository_id,
-{
+}: {
   code: string;
   clientId: string;
   clientSecret: string;
   redirectUri: string;
-  // repository_id?: number;
 }): Promise<GithubAuthInfo> => {
-  // const url =
-  //   `https://github.com/login/oauth/access_token?code=${code}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${clientSecret}` +
-  //   (repository_id ? `&repository_id=${repository_id}` : "");
+  if (!clientSecret) {
+    throw new Error('VITE_GITHUB_CLIENT_SECRET is required');
+  }
+
   const proxyUrl = `https://github.com/login/oauth/access_token?code=${code}&client_id=${clientId}&redirect_uri=${encodeURIComponent(
     redirectUri
   )}&client_secret=${clientSecret}`;
-  // const url = `https://cors-anywhere.herokuapp.com/${proxyUrl}`;
   const url = `https://proxy.agentverse.cc/?${proxyUrl}`;
   const res = await axios.post(url);
-  // store.set("github", res.data);
   return Object.fromEntries(
     new URLSearchParams(res.data).entries()
   ) as unknown as GithubAuthInfo;
-  // return res.data;
 };
 
 export const getGithubRepositoryId = async (owner: string, repo: string) => {
@@ -168,6 +164,8 @@ export const getGithubRepositoryId = async (owner: string, repo: string) => {
 
 export const refreshGithubAccessToken = async ({
   refreshToken,
+}: {
+  refreshToken: string;
 }): Promise<{
   access_token: string;
   created_at: number;
@@ -176,10 +174,19 @@ export const refreshGithubAccessToken = async ({
   scope: string;
   token_type: string;
 }> => {
-  const url = `https://github.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}`;
-  const res = await axios.post(url);
-  // store.set("github", res.data);
-  return res.data;
+  const url = `https://github.com/login/oauth/access_token?grant_type=refresh_token&refresh_token=${refreshToken}`;
+  const proxyUrl = `https://proxy.agentverse.cc/?${url}`;
+  const res = await axios.post(proxyUrl);
+  return Object.fromEntries(
+    new URLSearchParams(res.data).entries()
+  ) as unknown as {
+    access_token: string;
+    created_at: number;
+    expires_in: number;
+    refresh_token: string;
+    scope: string;
+    token_type: string;
+  };
 };
 export const getUrlParam = (name: string) => {
   const queryString = window.location.search;

@@ -1,4 +1,4 @@
-@import "./theme-base.scss";
+@use "./theme-base.scss" as *;
 
 .chakra-ui-light {
   @include theme-base;
