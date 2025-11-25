@@ -7,7 +7,7 @@ export const PageActionView: FC<{ action: IPageAction }> = ({ action }) => {
   const controller = PageBoxController.useExistingInstance()!;
   const { getCurrentPage } = controller;
   const { icon, onClick } = action;
-  const Icon = componentService.useComponent(icon);
+  const Icon = icon ? componentService.useComponent(icon) : undefined;
   return (
     <div
       key={action.id}

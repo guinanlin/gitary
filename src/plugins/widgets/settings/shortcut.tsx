@@ -44,7 +44,7 @@ export default function SettingsShortcut({ shortcut, isExpanded }: SettingsShort
     <BaseActivityItem
       activity={{ id: shortcut.id, name: displayName, icon } as any}
       isExpanded={isExpanded}
-      icon={<IconComponent className="w-full h-full" />}
+      icon={IconComponent ? <IconComponent className="w-full h-full" /> : null}
       className="data-[state=open]:pointer-events-none"
       disableTooltip={!isExpanded}
       asChild={true}

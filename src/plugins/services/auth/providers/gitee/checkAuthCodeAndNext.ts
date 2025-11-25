@@ -23,11 +23,20 @@ export const listenGiteeLoginCallback = createPlugin({
             .space("tmp", "localStorage")
             .get("authSpaceId");
           
-          if (spaceId) {
+          if (spaceId && auth.refresh_token) {
             const spaceStore = xbook.registry.get(
               "spaceStore"
             ) as DataStore<SpaceDef>;
-            spaceStore.getActions().upsert({ id: spaceId, auth });
+            const existingSpace = spaceStore.getRecord(spaceId);
+            if (existingSpace) {
+              spaceStore.getActions().update({ 
+                id: spaceId, 
+                auth: {
+                  access_token: auth.access_token,
+                  refresh_token: auth.refresh_token,
+                }
+              });
+            }
             xbook.cacheService
               .space("tmp", "localStorage")
               .remove("authSpaceId");

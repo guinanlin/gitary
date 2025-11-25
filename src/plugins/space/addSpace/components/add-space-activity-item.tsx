@@ -28,13 +28,15 @@ export const AddSpaceActivityItem = ({
       )}
       onMouseDown={(e) => e.preventDefault()}
     >
-      <IconComponent
-        className={cn(
-          "flex-shrink-0 transition-all duration-300 ease-in-out",
-          isExpanded ? "h-5 w-5" : "h-[22px] w-[22px]",
-          "hover:scale-105"
-        )}
-      />
+      {IconComponent && (
+        <IconComponent
+          className={cn(
+            "flex-shrink-0 transition-all duration-300 ease-in-out",
+            isExpanded ? "h-5 w-5" : "h-[22px] w-[22px]",
+            "hover:scale-105"
+          )}
+        />
+      )}
       {isExpanded && (
         <span className="ml-2.5 text-sm truncate text-muted-foreground animate-in fade-in-0 slide-in-from-left-2 duration-300">
           {name}

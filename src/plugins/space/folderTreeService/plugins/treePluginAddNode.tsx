@@ -87,9 +87,8 @@ export default createTreeHelper<FolderTreeNode>().createPlugin({
             name,
           };
           
-          // Add the node with loading state
           dataStore.getActions().add({
-            node: { ...childNode, loading: true },
+            node: childNode,
             parentId,
           });
 

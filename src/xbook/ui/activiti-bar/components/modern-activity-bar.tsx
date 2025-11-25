@@ -124,7 +124,7 @@ function SidebarItem({
       isExpanded={isExpanded}
       isActive={isActive}
       onClick={onClick}
-      icon={<IconComponent className="w-full h-full" />}
+      icon={IconComponent ? <IconComponent className="w-full h-full" /> : null}
     />
   );
 }
