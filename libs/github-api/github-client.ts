@@ -122,8 +122,8 @@ export const getGithubLoginUrl = ({
 }) => {
   const state = encodeURIComponent(JSON.stringify({ platform: "github" }));
   return `https://github.com/login/oauth/authorize?client_id=${clientId}` +
-    `&redirect_uri=${redirectUri}` +
-    `&apiresponse_type=code&scope=user%20repo&state=${state}`;
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code&scope=user%20repo&state=${state}`;
 };
 
 const prepareParams = (params: Record<string, any>) => {
