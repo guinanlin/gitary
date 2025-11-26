@@ -2,10 +2,19 @@ import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { spaceHelper } from "@/helpers/space.helper";
 import { useStickyAutoScroll } from "@/hooks/use-sticky-autoscroll";
 import { agent } from "@/services/ai/ai-agent-runner";
 import { aiContextService } from "@/services/ai/context-service";
+import { aiProviderStore } from "@/services/ai/ai-provider.store";
+import type { AIProviderName } from "@/services/ai/providers";
 import { cn } from "@/toolkit/utils/shadcn-utils";
 import {
   useAgentChat,
@@ -17,6 +26,7 @@ import { useColorMode } from "@chakra-ui/react";
 import { ArrowUp, Check, Copy, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useObservable } from "@/features/search/hooks/useObservable";
 import { ToolInvocationList } from "../components/tool-invocation-list";
 import { GLOBAL_AGENT_TOOLS } from "../tools";
 
@@ -45,6 +55,15 @@ const CopyButton = ({ content, isGenerating }: { content: string; isGenerating?:
   );
 };
 
+const PROVIDER_OPTIONS: { value: AIProviderName; label: string }[] = [
+  { value: "openai", label: "OpenAI" },
+  { value: "dashscope", label: "Dashscope (Qwen)" },
+  { value: "openrouter", label: "OpenRouter" },
+  { value: "deepseek", label: "DeepSeek" },
+  { value: "kimi", label: "Kimi (Moonshot)" },
+  { value: "glm", label: "GLM (Zhipu)" },
+];
+
 export const GlobalChatPanel = () => {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -52,6 +71,10 @@ export const GlobalChatPanel = () => {
   const { colorMode } = useColorMode();
   const { containerRef, notifyNewItem, scrollToBottom } = useStickyAutoScroll();
   const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null);
+  const currentProvider = useObservable(
+    aiProviderStore.provider$,
+    aiProviderStore.getProvider()
+  );
 
   // Global tools for the assistant; defined in a separate module for maintainability.
   const agentTools: AgentTool[] = useMemo(
@@ -272,9 +295,28 @@ export const GlobalChatPanel = () => {
               )}
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground/40 text-center mt-2 font-medium tracking-wide uppercase">
-            {t("globalChat.disclaimer") || "AI can make mistakes. Check important info."}
-          </p>
+          <div className="flex items-center justify-between mt-2 gap-2">
+            <Select
+              value={String(currentProvider)}
+              onValueChange={(value) => {
+                aiProviderStore.setProvider(value as AIProviderName);
+              }}
+            >
+              <SelectTrigger className="h-6 w-[130px] text-[10px] px-1.5 py-0.5 border-border/50 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[100] min-w-[130px]">
+                {PROVIDER_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)} className="text-[11px] py-1.5 h-7">
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground/40 font-medium tracking-wide uppercase flex-1 text-right">
+              {t("globalChat.disclaimer") || "AI can make mistakes. Check important info."}
+            </p>
+          </div>
         </div>
       </div>
     </div>

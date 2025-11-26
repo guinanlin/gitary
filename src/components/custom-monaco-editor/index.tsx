@@ -34,6 +34,28 @@ export const CustomMonacoEditor = (props: Props) => {
   );
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   
+  const isUserEditingRef = React.useRef(false);
+  const onChangeRef = React.useRef(onChange);
+  const keyBindingsRef = React.useRef(keyBindings);
+  const monacoOptionsRef = React.useRef(monacoOptions);
+  const onMountRef = React.useRef(onMount);
+
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  React.useEffect(() => {
+    keyBindingsRef.current = keyBindings;
+  }, [keyBindings]);
+
+  React.useEffect(() => {
+    monacoOptionsRef.current = monacoOptions;
+  }, [monacoOptions]);
+
+  React.useEffect(() => {
+    onMountRef.current = onMount;
+  }, [onMount]);
+
   React.useEffect(() => {
     if (!containerRef.current) return;
 
@@ -43,17 +65,21 @@ export const CustomMonacoEditor = (props: Props) => {
       value,
       language,
       theme: currentTheme,
-      ...monacoOptions,
+      ...monacoOptionsRef.current,
     });
 
-    onMount?.();
+    onMountRef.current?.();
 
     const changeModelContentSubscription =
       editorRef.current.onDidChangeModelContent(() => {
-        onChange?.(editorRef.current?.getValue() ?? "");
+        isUserEditingRef.current = true;
+        onChangeRef.current?.(editorRef.current?.getValue() ?? "");
+        setTimeout(() => {
+          isUserEditingRef.current = false;
+        }, 0);
       });
 
-    keyBindings?.forEach((binding) => {
+    keyBindingsRef.current?.forEach((binding) => {
       editorRef.current?.addCommand(binding.key, binding.action);
     });
 
@@ -68,18 +94,21 @@ export const CustomMonacoEditor = (props: Props) => {
       changeModelContentSubscription.dispose();
       editorRef.current?.dispose();
     };
-  }, [value, language, monacoOptions, onMount, keyBindings, propTheme, colorMode, onChange]);
+  }, [language, propTheme, colorMode]);
 
   React.useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && !isUserEditingRef.current) {
       const model = editorRef.current.getModel();
       const position = editorRef.current.getPosition();
+      const currentValue = editorRef.current.getValue();
 
-      editorRef.current.setValue(value);
+      if (currentValue !== value) {
+        editorRef.current.setValue(value);
 
-      if (model && position) {
-        editorRef.current.setPosition(position);
-        editorRef.current.revealPosition(position);
+        if (model && position) {
+          editorRef.current.setPosition(position);
+          editorRef.current.revealPosition(position);
+        }
       }
     }
   }, [value]);

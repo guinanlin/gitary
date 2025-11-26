@@ -14,6 +14,8 @@ import {
 import { Observable, type Unsubscribable } from "rxjs";
 import { aiGateway, type AIMessage } from "./gateway";
 import type { AIToolCall, AIToolDefinition } from "./types";
+import { aiProviderStore } from "./ai-provider.store";
+import { PROVIDER_CONFIGS } from "./providers";
 
 /**
  * Bridge between @agent-labs/agent-chat's IAgent interface and our existing
@@ -36,10 +38,17 @@ class AIGatewayAgent implements IAgent {
     return new Observable<AgentEvent>((subscriber) => {
       let innerSub: Unsubscribable | null = null;
 
+      const currentProvider = aiProviderStore.getProvider();
+      const providerConfig = PROVIDER_CONFIGS[currentProvider];
+      const model = providerConfig
+        ? `${currentProvider}/${providerConfig.defaultModel}`
+        : undefined;
+
       aiGateway
         .chatStreamChunks({
           messages: aiMessages,
           tools: toolDefs,
+          model,
         })
         .then((stream: AsyncIterable<OpenAIChatChunk>) => {
           const raw$ = convertOpenAIChunksToAgentEventObservable(
