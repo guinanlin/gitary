@@ -150,6 +150,14 @@
       flex-flow: row;
     }
 
+    .simplebar-scrollbar {
+      display: none !important;
+    }
+
+    .simplebar-track {
+      display: none !important;
+    }
+
     .tab {
       border-right: var(--border-light);
       border-bottom: var(--border-light);

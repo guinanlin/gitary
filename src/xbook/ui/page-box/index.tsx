@@ -10,7 +10,7 @@ import {
   VStack,
   forwardRef,
 } from "@chakra-ui/react";
-import { ReactNode, useEffect, useMemo, useRef } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   AiOutlineArrowLeft,
   AiOutlineArrowRight,
@@ -29,6 +29,7 @@ import { PageActions } from "xbook/ui/page-box/components/page-actions";
 import { PageBoxController } from "xbook/ui/page-box/controller";
 import { componentService } from "../componentService";
 import { Tab, TabIconButton } from "../components/tab";
+import { BottomScrollbar } from "./components/bottom-scrollbar";
 
 export const createPageBox = (): {
   proxy: ReturnType<typeof PageBoxController.create>;
@@ -54,12 +55,91 @@ export const createPageBox = (): {
     const tabBarVisible = useTabBarVisible();
     const visible = useVisible();
     const tabBarRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [sidebarLeftOffset, setSidebarLeftOffset] = useState(0);
+    
     useEffect(() => {
       if (tabBarRef.current) {
         return proxy.observeTabBar(tabBarRef.current);
       }
       return () => {};
     }, []);
+
+    useEffect(() => {
+      const updateSidebarOffset = () => {
+        const pageBoxElement = document.querySelector(".page-box") as HTMLElement;
+        if (pageBoxElement) {
+          const rect = pageBoxElement.getBoundingClientRect();
+          setSidebarLeftOffset(rect.left);
+        } else {
+          const rightPane = document.querySelector(".split-pane .right.pane") as HTMLElement;
+          if (rightPane) {
+            const rect = rightPane.getBoundingClientRect();
+            setSidebarLeftOffset(rect.left);
+          } else {
+            const splitPane = document.querySelector(".split-pane");
+            if (splitPane) {
+              const leftPane = splitPane.querySelector(".left.pane") as HTMLElement;
+              const resizer = splitPane.querySelector(".resizer-wrapper") as HTMLElement;
+              if (leftPane) {
+                const leftWidth = leftPane.offsetWidth;
+                const resizerWidth = resizer ? resizer.offsetWidth : 0;
+                const activityBar = document.querySelector(".activity-bar") as HTMLElement;
+                const activityBarWidth = activityBar ? activityBar.offsetWidth : 0;
+                const totalWidth = activityBarWidth + leftWidth + resizerWidth;
+                setSidebarLeftOffset(totalWidth);
+              } else {
+                const activityBar = document.querySelector(".activity-bar") as HTMLElement;
+                const activityBarWidth = activityBar ? activityBar.offsetWidth : 0;
+                setSidebarLeftOffset(activityBarWidth);
+              }
+            } else {
+              const activityBar = document.querySelector(".activity-bar") as HTMLElement;
+              const activityBarWidth = activityBar ? activityBar.offsetWidth : 0;
+              setSidebarLeftOffset(activityBarWidth);
+            }
+          }
+        }
+      };
+
+      updateSidebarOffset();
+
+      const resizeObserver = new ResizeObserver(() => {
+        updateSidebarOffset();
+      });
+
+      const pageBoxElement = document.querySelector(".page-box");
+      const splitPane = document.querySelector(".split-pane");
+      const activityBar = document.querySelector(".activity-bar");
+      
+      if (pageBoxElement) {
+        resizeObserver.observe(pageBoxElement);
+      }
+      if (splitPane) {
+        resizeObserver.observe(splitPane);
+      }
+      if (activityBar) {
+        resizeObserver.observe(activityBar);
+      }
+
+      const intervalId = setInterval(updateSidebarOffset, 100);
+
+      return () => {
+        resizeObserver.disconnect();
+        clearInterval(intervalId);
+      };
+    }, [tabBarVisible, visible]);
+
+    useEffect(() => {
+      if (tabBarRef.current && !device.isMobile()) {
+        const simplebarContent = tabBarRef.current.querySelector(
+          ".simplebar-content"
+        ) as HTMLElement;
+        if (simplebarContent) {
+          scrollContainerRef.current = simplebarContent;
+        }
+      }
+    }, [tabBarVisible, pageList]);
 
     const getPageActions = (id: string) => {
       return [
@@ -224,6 +304,9 @@ export const createPageBox = (): {
         }),
       [pageList]
     );
+
+    const currentPage = pageList.find((page) => page.active);
+    const isZenmarkEditor = currentPage?.viewData?.type === "zenmark-editor";
     return (
       <PageBoxController.Provider value={pageBoxController}>
         <VStack
@@ -234,57 +317,8 @@ export const createPageBox = (): {
           overflow={"hidden"}
           display={visible ? "flex" : "none"}
           gap={0}
+          position="relative"
         >
-          <>
-            {tabBarVisible && (
-              <HStack
-                ref={tabBarRef}
-                key={"tab-bar"}
-                h={"40px"}
-                minH={"40px"}
-                className="tab-bar"
-                // overflow="auto"
-                w="100%"
-                gap={0}
-                zIndex={999999}
-              >
-                <TabIconButton
-                  className="tab-bar-left-extra"
-                  onClick={() => {
-                    commandService.executeCommand(CommandKeys.ToggleHome);
-                  }}
-                >
-                  <Icon fontSize={"lg"} as={AiOutlineMenuFold} />
-                </TabIconButton>
-                <HStack
-                  className="tab-bar-content scroll scroll-9"
-                  flexGrow={1}
-                  h="100%"
-                  // overflow={"hidden"}
-                  overflowY={"hidden"}
-                  overflowX="auto"
-                  gap={0}
-                >
-                  {device.isMobile() ? (
-                    tabsView
-                  ) : (
-                    <SimpleBar
-                      autoHide
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        height: "100%",
-                        flexFlow: "row",
-                      }}
-                    >
-                      {tabsView}
-                    </SimpleBar>
-                  )}
-                </HStack>
-                {tabBarRight}
-              </HStack>
-            )}
-          </>
           <>
             {
               <Box
@@ -294,10 +328,73 @@ export const createPageBox = (): {
                 className={"content-area"}
                 h="100%"
                 overflow={"hidden"}
+                pb={tabBarVisible ? "40px" : 0}
               >
                 {bodiesView}
               </Box>
             }
+          </>
+          <>
+            {tabBarVisible && (
+              <HStack
+                ref={tabBarRef}
+                key={"tab-bar"}
+                h={"40px"}
+                minH={"40px"}
+                className="tab-bar"
+                gap={0}
+                zIndex={999999}
+                position="fixed"
+                bottom={0}
+                left={`${sidebarLeftOffset}px`}
+                right={0}
+                bg="var(--chakra-colors-chakra-body-bg, white)"
+                borderTop="1px solid"
+                borderColor="var(--chakra-colors-gray-200, #E2E8F0)"
+              >
+                {!isZenmarkEditor && (
+                  <TabIconButton
+                    className="tab-bar-left-extra"
+                    onClick={() => {
+                      commandService.executeCommand(CommandKeys.ToggleHome);
+                    }}
+                  >
+                    <Icon fontSize={"lg"} as={AiOutlineMenuFold} />
+                  </TabIconButton>
+                )}
+                <HStack
+                  className="tab-bar-content scroll scroll-9"
+                  flexGrow={1}
+                  h="100%"
+                  overflowY={"hidden"}
+                  overflowX="hidden"
+                  gap={0}
+                  position="relative"
+                >
+                  {device.isMobile() ? (
+                    tabsView
+                  ) : (
+                    <>
+                      <SimpleBar
+                        autoHide={false}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          height: "100%",
+                          flexFlow: "row",
+                        }}
+                      >
+                        {tabsView}
+                      </SimpleBar>
+                      <BottomScrollbar
+                        scrollContainerRef={scrollContainerRef}
+                      />
+                    </>
+                  )}
+                </HStack>
+                {tabBarRight}
+              </HStack>
+            )}
           </>
         </VStack>
       </PageBoxController.Provider>

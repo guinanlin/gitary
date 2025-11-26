@@ -62,6 +62,7 @@ export const GlobalSidecarProvider = ({
   const [activePaneId, setActivePaneId] = useState<string | undefined>(undefined);
   const [activePaneProps, setActivePaneProps] = useState<Record<string, unknown>>({});
   const [contentVisible, setContentVisible] = useState(false);
+  const [isZenmarkEditor, setIsZenmarkEditor] = useState(false);
 
   useEffect(() => {
     return subscribeGlobalSidecarPanes((next) => {
@@ -88,6 +89,39 @@ export const GlobalSidecarProvider = ({
       setContentVisible(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    const checkZenmarkEditor = () => {
+      const pageBoxController = (window as any).pageBoxController;
+      if (pageBoxController) {
+        const pageList = pageBoxController.getPageList?.() || [];
+        const currentPage = pageList.find((page: any) => page.active);
+        const isZenmark = currentPage?.viewData?.type === "zenmark-editor";
+        setIsZenmarkEditor(isZenmark);
+      } else {
+        setIsZenmarkEditor(false);
+      }
+    };
+
+    checkZenmarkEditor();
+
+    const intervalId = setInterval(checkZenmarkEditor, 200);
+
+    const pageBoxController = (window as any).pageBoxController;
+    if (pageBoxController?.subscribePageList) {
+      const unsubscribe = pageBoxController.subscribePageList(() => {
+        checkZenmarkEditor();
+      });
+      return () => {
+        clearInterval(intervalId);
+        unsubscribe?.();
+      };
+    }
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const openPane = useCallback(
     (id: string, props?: Record<string, unknown>) => {
@@ -248,7 +282,7 @@ export const GlobalSidecarProvider = ({
                   ) : null}
                 </div>
 
-                {!isMobile && (
+                {!isMobile && !isZenmarkEditor && (
                   <div className="w-[52px] flex flex-col items-center py-6 gap-4 border-l border-border/40 bg-background/50 backdrop-blur-sm">
                     {orderedPanes.map((pane) => {
                       const Icon = pane.icon ?? MessageCircle;

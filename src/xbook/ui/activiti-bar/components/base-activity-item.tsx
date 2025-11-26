@@ -2,7 +2,6 @@ import { cn } from "@/toolkit/utils/shadcn-utils";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { IActivityItem } from "xbook/ui/activiti-bar/types";
@@ -84,7 +83,9 @@ export function BaseActivityItem({
   const button = buttonElement;
 
   const content = asChild ? button : (
-    <div className="flex justify-center">{button}</div>
+    <div className={cn("flex justify-center", !isExpanded && "w-full min-w-0")}>
+      {button}
+    </div>
   );
 
   const tooltip = tooltipContent ?? activity.name;
@@ -94,18 +95,16 @@ export function BaseActivityItem({
   }
 
   return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip disableHoverableContent>
-        <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent
-          side="right"
-          sideOffset={10}
-          className="text-xs px-2.5 py-1.5 bg-popover/95 text-popover-foreground rounded-md"
-        >
-          {tooltip}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip disableHoverableContent>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipContent
+        side="right"
+        sideOffset={10}
+        className="text-xs px-2.5 py-1.5 bg-popover/95 text-popover-foreground rounded-md"
+      >
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
