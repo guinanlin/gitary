@@ -69,10 +69,21 @@ export function GitCommitPanel({ spaceId, open, onOpenChange }: GitCommitPanelPr
 
         if (gitClient.Repo?.get) {
           const repoInfo = await gitClient.Repo.get({ owner: space.owner, repo: space.repo });
-          const defaultBranch = repoInfo?.data?.default_branch || repoInfo?.data?.defaultBranch || "main";
+          let defaultBranch = repoInfo?.data?.default_branch || repoInfo?.data?.defaultBranch;
+          if (!defaultBranch) {
+            if (space.platform === "gitee") {
+              defaultBranch = "master";
+            } else {
+              defaultBranch = "main";
+            }
+          }
           setBranch(defaultBranch);
         } else {
-          setBranch("main");
+          if (space.platform === "gitee") {
+            setBranch("master");
+          } else {
+            setBranch("main");
+          }
         }
       } catch (error) {
         console.warn("[GitCommitPanel] Failed to load default branch, using 'main'", error);
@@ -84,6 +95,267 @@ export function GitCommitPanel({ spaceId, open, onOpenChange }: GitCommitPanelPr
 
     return unsubscribe;
   }, [open, spaceId]);
+
+  const extractErrorMessage = (error: any): string => {
+    console.log("[GitCommitPanel] Error object:", error);
+    
+    const errorData = error?.response?.data;
+    console.log("[GitCommitPanel] Error data:", errorData);
+    
+    if (errorData) {
+      if (typeof errorData === "string") {
+        return errorData;
+      } else if (errorData.message) {
+        return errorData.message;
+      } else if (errorData.error) {
+        return typeof errorData.error === "string" ? errorData.error : JSON.stringify(errorData.error);
+      } else if (errorData.error_description) {
+        return errorData.error_description;
+      } else {
+        try {
+          return JSON.stringify(errorData);
+        } catch {
+          return String(errorData);
+        }
+      }
+    }
+    
+    if (error?.message) {
+      return error.message;
+    }
+    
+    if (error?.response?.statusText) {
+      return error.response.statusText;
+    }
+    
+    return String(error);
+  };
+
+  const commitFileForGitHub = async (
+    gitClient: any,
+    accessToken: string,
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string
+  ): Promise<void> => {
+    let fileSha: string | null = null;
+    try {
+      const pathInfo = await gitClient.File.get({
+        owner,
+        repo,
+        path,
+      });
+      fileSha = pathInfo?.data?.sha || pathInfo?.sha || null;
+    } catch (error: any) {
+      const status = error?.response?.status || error?.status;
+      if (status !== 404) {
+        console.warn(`[GitCommitPanel] Failed to get file SHA for ${path}, will try to create:`, error);
+      }
+    }
+
+    const octokit = new Octokit({
+      auth: accessToken,
+    });
+    const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+    
+    const contentString = content || "";
+    const contentBase64 = btoa(unescape(encodeURIComponent(contentString)));
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: normalizedPath,
+      message,
+      content: contentBase64,
+      branch,
+      ...(fileSha ? { sha: fileSha } : {}),
+    });
+    console.log(`[GitCommitPanel] ${fileSha ? "Updated" : "Created"} file: ${path}`);
+  };
+
+  const commitFileForGitee = async (
+    gitClient: any,
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string
+  ): Promise<void> => {
+    console.log(`[GitCommitPanel] Gitee commit: owner=${owner}, repo=${repo}, path=${path}, branch=${branch}`);
+    
+    try {
+      const repoInfo = await gitClient.Repo.get({ owner, repo });
+      console.log(`[GitCommitPanel] Repository found:`, repoInfo?.data?.name);
+    } catch (repoError: any) {
+      const repoStatus = repoError?.response?.status || repoError?.status;
+      const repoErrorMessage = extractErrorMessage(repoError);
+      console.error(`[GitCommitPanel] Repository check failed (${repoStatus}):`, repoErrorMessage);
+      if (repoStatus === 404) {
+        throw new Error(`Repository "${owner}/${repo}" not found or access denied. Please check the repository name and your permissions.`);
+      }
+      throw new Error(`Failed to access repository: ${repoErrorMessage}`);
+    }
+
+    try {
+      const branchInfo = await gitClient.Branch.get({ owner, repo, branch });
+      console.log(`[GitCommitPanel] Branch "${branch}" found:`, branchInfo?.data?.name);
+    } catch (branchError: any) {
+      const branchStatus = branchError?.response?.status || branchError?.status;
+      const branchErrorMessage = extractErrorMessage(branchError);
+      console.error(`[GitCommitPanel] Branch check failed (${branchStatus}):`, branchErrorMessage);
+      if (branchStatus === 404) {
+        throw new Error(`Branch "${branch}" not found in repository "${owner}/${repo}". Please check the branch name.`);
+      }
+      console.warn(`[GitCommitPanel] Branch check failed, but continuing:`, branchErrorMessage);
+    }
+    
+    let fileExists = false;
+    let fileSha: string | null = null;
+
+    try {
+      const pathInfo = await gitClient.File.get({
+        owner,
+        repo,
+        path,
+      });
+      fileSha = pathInfo?.data?.sha || pathInfo?.sha || null;
+      fileExists = !!fileSha;
+      console.log(`[GitCommitPanel] File ${fileExists ? "exists" : "not found"}, SHA: ${fileSha}`);
+    } catch (error: any) {
+      const status = error?.response?.status || error?.status;
+      console.log(`[GitCommitPanel] File.get failed with status ${status}:`, error);
+      if (status !== 404) {
+        console.warn(`[GitCommitPanel] Failed to get file info for ${path}, will try to create:`, error);
+      }
+    }
+
+    if (fileExists && fileSha) {
+      try {
+        console.log(`[GitCommitPanel] Updating file with SHA: ${fileSha}`);
+        await gitClient.File.update({
+          owner,
+          repo,
+          path,
+          content,
+          message,
+          branch,
+          sha: fileSha,
+        });
+        console.log(`[GitCommitPanel] Updated file: ${path}`);
+      } catch (updateError: any) {
+        const status = updateError?.response?.status || updateError?.status;
+        const errorMessage = extractErrorMessage(updateError);
+        console.error(`[GitCommitPanel] Update failed (${status}):`, errorMessage);
+        
+        if (status === 404) {
+          if (errorMessage.includes("Not Found") || errorMessage.includes("不存在") || errorMessage.includes("不存在")) {
+            throw new Error(`Branch "${branch}" not found. Please check the branch name.`);
+          }
+        }
+        throw new Error(`Failed to update file: ${errorMessage}`);
+      }
+    } else {
+      try {
+        console.log(`[GitCommitPanel] Creating new file on branch: ${branch}`);
+        await gitClient.File.add({
+          owner,
+          repo,
+          path,
+          content,
+          message,
+          branch,
+        });
+        console.log(`[GitCommitPanel] Created file: ${path}`);
+      } catch (addError: any) {
+        const status = addError?.response?.status || addError?.status;
+        const errorMessage = extractErrorMessage(addError);
+        console.error(`[GitCommitPanel] Add failed (${status}):`, errorMessage, addError);
+        
+        if (status === 404) {
+          const lowerMessage = errorMessage.toLowerCase();
+          if (lowerMessage.includes("not found") || lowerMessage.includes("不存在") || lowerMessage.includes("project")) {
+            throw new Error(`Branch "${branch}" not found or repository access denied. Please check the branch name and your permissions. Original error: ${errorMessage}`);
+          }
+          throw new Error(`Failed to create file (404): ${errorMessage || "Not Found"}`);
+        }
+        throw new Error(`Failed to create file: ${errorMessage}`);
+      }
+    }
+  };
+
+  const commitFileForGitCode = async (
+    gitClient: any,
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string
+  ): Promise<void> => {
+    let fileExists = false;
+    let fileSha: string | null = null;
+
+    try {
+      const pathInfo = await gitClient.File.get({
+        owner,
+        repo,
+        path,
+      });
+      fileSha = pathInfo?.data?.sha || pathInfo?.sha || null;
+      fileExists = !!fileSha;
+    } catch (error: any) {
+      const status = error?.response?.status || error?.status;
+      if (status !== 404) {
+        console.warn(`[GitCommitPanel] Failed to get file info for ${path}, will try to create:`, error);
+      }
+    }
+
+    if (fileExists && fileSha) {
+      try {
+        await gitClient.File.update({
+          owner,
+          repo,
+          path,
+          content,
+          message,
+          branch,
+          sha: fileSha,
+        });
+        console.log(`[GitCommitPanel] Updated file: ${path}`);
+      } catch (updateError: any) {
+        const status = updateError?.response?.status || updateError?.status;
+        if (status === 404) {
+          console.log(`[GitCommitPanel] File not found, creating instead: ${path}`);
+          await gitClient.File.add({
+            owner,
+            repo,
+            path,
+            content,
+            message,
+            branch,
+          });
+          console.log(`[GitCommitPanel] Created file: ${path}`);
+        } else {
+          const errorMessage = extractErrorMessage(updateError);
+          throw new Error(`Failed to update file: ${errorMessage}`);
+        }
+      }
+    } else {
+      await gitClient.File.add({
+        owner,
+        repo,
+        path,
+        content,
+        message,
+        branch,
+      });
+      console.log(`[GitCommitPanel] Created file: ${path}`);
+    }
+  };
 
   const handleCommit = async () => {
     if (stagedFiles.length === 0) {
@@ -139,78 +411,70 @@ export function GitCommitPanel({ spaceId, open, onOpenChange }: GitCommitPanelPr
             });
             console.log(`[GitCommitPanel] Deleted file: ${path}`);
           } else if (file.operation === "add") {
-            await gitClient.File.add({
-              owner: space.owner,
-              repo: space.repo,
-              path,
-              content: file.content || "",
-              message: commitMessage,
-              branch: branchToUse,
-            });
-            console.log(`[GitCommitPanel] Added file: ${path}`);
+            if (space.platform === "github") {
+              await commitFileForGitHub(
+                gitClient,
+                accessToken,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
+            } else if (space.platform === "gitee") {
+              await commitFileForGitee(
+                gitClient,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
+            } else if (space.platform === "gitcode") {
+              await commitFileForGitCode(
+                gitClient,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
+            }
           } else {
             if (space.platform === "github") {
-              let fileSha: string | null = null;
-              try {
-                const pathInfo = await gitClient.File.get({
-                  owner: space.owner,
-                  repo: space.repo,
-                  path,
-                });
-                fileSha = pathInfo?.data?.sha || pathInfo?.sha || null;
-              } catch (error: any) {
-                const status = error?.response?.status || error?.status;
-                if (status !== 404) {
-                  console.warn(`[GitCommitPanel] Failed to get file SHA for ${path}, will try to create:`, error);
-                }
-              }
-
-              const octokit = new Octokit({
-                auth: accessToken,
-              });
-              const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-              
-              const contentString = file.content || "";
-              const contentBase64 = btoa(unescape(encodeURIComponent(contentString)));
-
-              await octokit.rest.repos.createOrUpdateFileContents({
-                owner: space.owner,
-                repo: space.repo,
-                path: normalizedPath,
-                message: commitMessage,
-                content: contentBase64,
-                branch: branchToUse,
-                ...(fileSha ? { sha: fileSha } : {}),
-              });
-              console.log(`[GitCommitPanel] ${fileSha ? "Updated" : "Created"} file: ${path}`);
-            } else {
-              try {
-                await gitClient.File.update({
-                  owner: space.owner,
-                  repo: space.repo,
-                  path,
-                  content: file.content || "",
-                  message: commitMessage,
-                  branch: branchToUse,
-                });
-                console.log(`[GitCommitPanel] Updated file: ${path}`);
-              } catch (updateError: any) {
-                const status = updateError?.response?.status || updateError?.status;
-                if (status === 404) {
-                  console.log(`[GitCommitPanel] File not found, creating instead: ${path}`);
-                  await gitClient.File.add({
-                    owner: space.owner,
-                    repo: space.repo,
-                    path,
-                    content: file.content || "",
-                    message: commitMessage,
-                    branch: branchToUse,
-                  });
-                  console.log(`[GitCommitPanel] Created file: ${path}`);
-                } else {
-                  throw updateError;
-                }
-              }
+              await commitFileForGitHub(
+                gitClient,
+                accessToken,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
+            } else if (space.platform === "gitee") {
+              await commitFileForGitee(
+                gitClient,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
+            } else if (space.platform === "gitcode") {
+              await commitFileForGitCode(
+                gitClient,
+                space.owner,
+                space.repo,
+                path,
+                file.content || "",
+                commitMessage,
+                branchToUse
+              );
             }
           }
         } catch (fileError: any) {

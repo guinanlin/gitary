@@ -154,7 +154,7 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
                             data.map((d) => ({
                                 value: d.name,
                                 label: d.name,
-                                owner: d.owner?.login || d.owner?.name || "",
+                                owner: (d as any).namespace?.path || d.owner?.login || d.owner?.name || "",
                             }))
                         );
                     } else {
