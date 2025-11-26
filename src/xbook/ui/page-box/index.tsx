@@ -55,7 +55,7 @@ export const createPageBox = (): {
     const tabBarVisible = useTabBarVisible();
     const visible = useVisible();
     const tabBarRef = useRef<HTMLDivElement>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
     const [sidebarLeftOffset, setSidebarLeftOffset] = useState(0);
     
     useEffect(() => {

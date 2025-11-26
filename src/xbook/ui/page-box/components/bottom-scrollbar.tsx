@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/toolkit/utils/shadcn-utils";
 
 interface BottomScrollbarProps {
-  scrollContainerRef: React.RefObject<HTMLElement>;
+  scrollContainerRef: React.MutableRefObject<HTMLElement | null>;
   className?: string;
 }
 
