@@ -15,11 +15,11 @@ export class AIService {
     messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
     responseFormat?: { type: string }
   ) {
-    const res = await aiGateway.chat({
+    const res = await aiGateway.chatStream({
       model: this.model,
       messages,
       // responseFormat is not wired yet; kept for compatibility.
-    });
+    }, () => { });
 
     const msg = res.messages[0];
     if (!msg) {

@@ -42,42 +42,42 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 function createCustomFetch(): typeof fetch {
   const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    
+
     if (!url.includes("gitcode.com")) {
       return fetch(input, init);
     }
-    
+
     const customInit: RequestInit = { ...init };
-    
+
     if (customInit.headers) {
       const headers = new Headers();
       const originalHeaders = new Headers(customInit.headers);
-      
+
       originalHeaders.forEach((value, name) => {
         const lowerName = name.toLowerCase();
         if (!lowerName.startsWith("x-stainless-")) {
           headers.set(name, value);
         }
       });
-      
+
       customInit.headers = headers;
     } else if (init?.headers) {
       const headers = new Headers();
       const originalHeaders = new Headers(init.headers);
-      
+
       originalHeaders.forEach((value, name) => {
         const lowerName = name.toLowerCase();
         if (!lowerName.startsWith("x-stainless-")) {
           headers.set(name, value);
         }
       });
-      
+
       customInit.headers = headers;
     }
-    
+
     return fetch(input, customInit);
   };
-  
+
   return customFetch as typeof fetch;
 }
 
@@ -95,10 +95,10 @@ export class OpenAICompatibleProvider implements AIProvider {
     );
     this.apiKey = options?.apiKey;
     this.defaultModel = options?.defaultModel || "gpt-4o-mini";
-    
+
     const needsCustomFetch = this.baseUrl.includes("gitcode.com");
     const customFetch = needsCustomFetch ? createCustomFetch() : undefined;
-    
+
     this.client = new OpenAI({
       apiKey: this.apiKey || "",
       baseURL: this.baseUrl,

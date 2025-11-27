@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/toolkit/utils/shadcn-utils";
 import {
   getRegisteredGlobalSidecarPanes,
@@ -9,6 +10,7 @@ import {
   type GlobalSidecarPaneDefinition,
 } from "./sidecar-pane-registry";
 import { GlobalSidecarContext } from "./global-sidecar-context";
+import { MarkdownOutlinePanel } from "@/features/global-sidecar-providers/panes/markdown-outline-panel";
 
 const PANEL_WIDTH = 400;
 const SIDEBAR_ANIMATION_DURATION = 200;
@@ -63,6 +65,7 @@ export const GlobalSidecarProvider = ({
   const [activePaneProps, setActivePaneProps] = useState<Record<string, unknown>>({});
   const [contentVisible, setContentVisible] = useState(false);
   const [isZenmarkEditor, setIsZenmarkEditor] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "outline">("chat");
 
   useEffect(() => {
     return subscribeGlobalSidecarPanes((next) => {
@@ -253,36 +256,67 @@ export const GlobalSidecarProvider = ({
                       }}
                     >
                       <div className="flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-10 border-b border-border/40">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
                           {activePane.icon && (
-                            <div className="w-5 h-5">
+                            <div className="w-5 h-5 flex-shrink-0">
                               <activePane.icon className="w-full h-full" />
                             </div>
                           )}
-                          <p className="text-sm font-medium text-foreground/90 tracking-tight">
-                            {activePane.title}
-                          </p>
+                          {isZenmarkEditor && activePaneId === "global-chat" ? (
+                            <Tabs 
+                              value={activeTab} 
+                              onValueChange={(v) => setActiveTab(v as "chat" | "outline")} 
+                              className="flex-1 min-w-0"
+                            >
+                              <TabsList className="h-8">
+                                <TabsTrigger value="chat" className="text-xs px-3">
+                                  AI Assistant
+                                </TabsTrigger>
+                                <TabsTrigger value="outline" className="text-xs px-3">
+                                  大纲
+                                </TabsTrigger>
+                              </TabsList>
+                            </Tabs>
+                          ) : (
+                            <p className="text-sm font-medium text-foreground/90 tracking-tight truncate">
+                              {activePane.title}
+                            </p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={closePane}
-                          className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors"
+                          className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors flex-shrink-0"
                         >
                           ×
                         </Button>
                       </div>
                       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                        <ActiveComponent
-                          {...activePaneProps}
-                          closePane={closePane}
-                        />
+                        {isZenmarkEditor && activePaneId === "global-chat" ? (
+                          <>
+                            {activeTab === "chat" && (
+                              <ActiveComponent
+                                {...activePaneProps}
+                                closePane={closePane}
+                              />
+                            )}
+                            {activeTab === "outline" && (
+                              <MarkdownOutlinePanel />
+                            )}
+                          </>
+                        ) : (
+                          <ActiveComponent
+                            {...activePaneProps}
+                            closePane={closePane}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : null}
                 </div>
 
-                {!isMobile && !isZenmarkEditor && (
+                {!isMobile && !isZenmarkEditor && open && (
                   <div className="w-[52px] flex flex-col items-center py-6 gap-4 border-l border-border/40 bg-background/50 backdrop-blur-sm">
                     {orderedPanes.map((pane) => {
                       const Icon = pane.icon ?? MessageCircle;

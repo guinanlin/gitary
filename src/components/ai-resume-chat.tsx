@@ -13,6 +13,9 @@ import { ResumeView } from "@/components/resume-view";
 import { Message, Resume, AppProps } from "@/types/resume";
 import { isEqual } from 'lodash';
 
+import { aiProviderStore } from "@/services/ai/ai-provider.store";
+import { PROVIDER_CONFIGS } from "@/services/ai/providers";
+
 export function AIResumeChat({ saveData, loadData }: AppProps) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -22,7 +25,13 @@ export function AIResumeChat({ saveData, loadData }: AppProps) {
   const { toast } = useToast();
   const { containerRef, notifyNewItem, scrollToBottom, setIsSticky } =
     useStickyAutoScroll({ threshold: 80 });
-  const aiService = new AIService("gpt-4o-mini");
+
+  // Get current provider and its default model
+  const currentProvider = aiProviderStore.getProvider();
+  const providerConfig = PROVIDER_CONFIGS[currentProvider];
+  const model = providerConfig?.defaultModel || "gpt-4o-mini";
+  // Use the provider-specific model (e.g., "Kimi-K2" for Kimi)
+  const aiService = new AIService(model);
   const prevDataRef = useRef({ messages });
 
   useEffect(() => {
@@ -46,7 +55,7 @@ export function AIResumeChat({ saveData, loadData }: AppProps) {
 
   useEffect(() => {
     const currentData = { messages };
-    
+
     if (isEqual(currentData, prevDataRef.current)) {
       return;
     }
@@ -59,7 +68,7 @@ export function AIResumeChat({ saveData, loadData }: AppProps) {
         console.error("Auto save failed:", error);
       }
     };
-    
+
     const timeoutId = setTimeout(autoSave, 1000);
     return () => clearTimeout(timeoutId);
   }, [messages, saveData]);
@@ -184,11 +193,10 @@ ${messages.map((m) => `${m.type}: ${m.content}`).join("\n")}
         return (
           <div
             key={message.timestamp}
-            className={`p-4 rounded-lg mb-4 ${
-              message.type === "user"
+            className={`p-4 rounded-lg mb-4 ${message.type === "user"
                 ? "bg-blue-100 ml-12"
                 : "bg-gray-100 mr-12"
-            }`}
+              }`}
           >
             {message.content}
           </div>
@@ -235,8 +243,8 @@ ${messages.map((m) => `${m.type}: ${m.content}`).join("\n")}
         open={!!selectedResume}
         onOpenChange={() => setSelectedResume(null)}
       >
-        <SheetContent 
-          side="right" 
+        <SheetContent
+          side="right"
           className="w-[1000px] overflow-y-auto max-h-screen p-8"
         >
           <SheetHeader className="mb-6">
