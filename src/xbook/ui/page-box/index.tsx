@@ -30,6 +30,9 @@ import { PageBoxController } from "xbook/ui/page-box/controller";
 import { componentService } from "../componentService";
 import { Tab, TabIconButton } from "../components/tab";
 import { BottomScrollbar } from "./components/bottom-scrollbar";
+import { useGlobalSidecar } from "xbook/global-sidecar/global-sidecar-context";
+import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
+import { cn } from "@/toolkit/utils/shadcn-utils";
 
 export const createPageBox = (): {
   proxy: ReturnType<typeof PageBoxController.create>;
@@ -57,6 +60,14 @@ export const createPageBox = (): {
     const tabBarRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLElement | null>(null);
     const [sidebarLeftOffset, setSidebarLeftOffset] = useState(0);
+    const { open, activePaneId, openPane, closePane } = useGlobalSidecar();
+    
+    const tabBarRightOffset = useMemo(() => {
+      if (open && activePaneId) {
+        return "var(--global-ai-sidebar-width, clamp(280px, 80vw, 400px))";
+      }
+      return 0;
+    }, [open, activePaneId]);
     
     useEffect(() => {
       if (tabBarRef.current) {
@@ -235,49 +246,80 @@ export const createPageBox = (): {
     );
 
     const tabBarRight = useMemo(
-      () => (
-        <>
+      () => {
+        const aiAssistantActive = activePaneId === "global-chat" && open;
+        return (
           <>
-            <Flex
-              align={"center"}
-              h="100%"
-              flexShrink={0}
-              flexGrow={0}
-              className="tab-bar-right-extra"
-            >
-              <PageActions />
-              {pageList.length > tabBarCapacity && (
-                <Menu>
-                  <MenuButton
-                    as={forwardRef((props, ref) => (
-                      <TabIconButton {...props} ref={ref}>
-                        <Icon fontSize={"lg"} as={AiOutlineMenu} />
-                      </TabIconButton>
-                    ))}
-                  ></MenuButton>
-                  <MenuList maxW="400px" className="right-list" zIndex={100}>
-                    {pageList.slice(0).map(({ title, id, active, status }) => (
-                      <MenuItem key={id}>
-                        <Tab
-                          minWidth={minTabWidth}
-                          title={title}
-                          isActive={active}
-                          onClick={() => proxy.showPage(id)}
-                          onClose={() => proxy.removePage(id)}
-                          status={status}
-                          stretch
-                          actions={getPageActions(id)}
-                        />
-                      </MenuItem>
-                    ))}
-                  </MenuList>
-                </Menu>
-              )}
-            </Flex>
+            <>
+              <Flex
+                align={"center"}
+                h="100%"
+                flexShrink={0}
+                flexGrow={0}
+                className="tab-bar-right-extra"
+              >
+                <button
+                  onClick={() => {
+                    if (aiAssistantActive) {
+                      closePane();
+                    } else {
+                      openPane("global-chat");
+                    }
+                  }}
+                  className={cn(
+                    "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
+                    aiAssistantActive
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  )}
+                  title="AI Assistant"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AIAssistantIcon
+                    className={cn(
+                      "h-5 w-5 transition-transform duration-200",
+                      aiAssistantActive ? "scale-100" : "group-hover:scale-110"
+                    )}
+                  />
+                </button>
+                <PageActions />
+                {pageList.length > tabBarCapacity && (
+                  <Menu>
+                    <MenuButton
+                      as={forwardRef((props, ref) => (
+                        <TabIconButton {...props} ref={ref}>
+                          <Icon fontSize={"lg"} as={AiOutlineMenu} />
+                        </TabIconButton>
+                      ))}
+                    ></MenuButton>
+                    <MenuList maxW="400px" className="right-list" zIndex={100}>
+                      {pageList.slice(0).map(({ title, id, active, status }) => (
+                        <MenuItem key={id}>
+                          <Tab
+                            minWidth={minTabWidth}
+                            title={title}
+                            isActive={active}
+                            onClick={() => proxy.showPage(id)}
+                            onClose={() => proxy.removePage(id)}
+                            status={status}
+                            stretch
+                            actions={getPageActions(id)}
+                          />
+                        </MenuItem>
+                      ))}
+                    </MenuList>
+                  </Menu>
+                )}
+              </Flex>
+            </>
           </>
-        </>
-      ),
-      [pageList, tabBarCapacity]
+        );
+      },
+      [pageList, tabBarCapacity, open, activePaneId, openPane, closePane]
     );
 
     const bodiesView = useMemo(
@@ -305,8 +347,6 @@ export const createPageBox = (): {
       [pageList]
     );
 
-    const currentPage = pageList.find((page) => page.active);
-    const isZenmarkEditor = currentPage?.viewData?.type === "zenmark-editor";
     return (
       <PageBoxController.Provider value={pageBoxController}>
         <VStack
@@ -347,21 +387,24 @@ export const createPageBox = (): {
                 position="fixed"
                 bottom={0}
                 left={`${sidebarLeftOffset}px`}
-                right={0}
+                right={tabBarRightOffset === 0 ? 0 : undefined}
                 bg="var(--chakra-colors-chakra-body-bg, white)"
                 borderTop="1px solid"
                 borderColor="var(--chakra-colors-gray-200, #E2E8F0)"
+                style={{
+                  ...(tabBarRightOffset !== 0 && {
+                    right: tabBarRightOffset,
+                  }),
+                }}
               >
-                {!isZenmarkEditor && (
-                  <TabIconButton
-                    className="tab-bar-left-extra"
-                    onClick={() => {
-                      commandService.executeCommand(CommandKeys.ToggleHome);
-                    }}
-                  >
-                    <Icon fontSize={"lg"} as={AiOutlineMenuFold} />
-                  </TabIconButton>
-                )}
+                <TabIconButton
+                  className="tab-bar-left-extra"
+                  onClick={() => {
+                    commandService.executeCommand(CommandKeys.ToggleHome);
+                  }}
+                >
+                  <Icon fontSize={"lg"} as={AiOutlineMenuFold} />
+                </TabIconButton>
                 <HStack
                   className="tab-bar-content scroll scroll-9"
                   flexGrow={1}

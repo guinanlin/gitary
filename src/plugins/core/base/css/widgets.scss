@@ -154,5 +154,63 @@
       margin-top: 0 !important;
       padding-top: 0 !important;
     }
+
+    // Hide YAML code blocks that might be frontmatter
+    pre[class*="language-yaml"],
+    code[class*="language-yaml"],
+    pre[class*="yaml"],
+    code[class*="yaml"] {
+      &:first-child {
+        display: none !important;
+      }
+    }
+
+    // Hide frontmatter markers
+    .frontmatter,
+    [data-frontmatter] {
+      display: none !important;
+    }
+
+    // Hide HR pairs at the beginning (frontmatter delimiters)
+    hr:first-child {
+      & ~ hr:nth-of-type(2) {
+        display: none !important;
+      }
+      
+      // Hide content between first two HRs if it looks like frontmatter
+      & ~ p,
+      & ~ div,
+      & ~ pre {
+        &:first-of-type {
+          &:has(+ hr) {
+            display: none !important;
+          }
+        }
+      }
+    }
+  }
+
+  .zenmark-editor-content {
+    & > hr:first-child + * {
+      margin-top: 0;
+    }
+
+    // Hide first-child code blocks with yaml/frontmatter classes
+    pre:first-child[class*="yaml"],
+    code:first-child[class*="yaml"],
+    pre:first-child[class*="frontmatter"],
+    code:first-child[class*="frontmatter"] {
+      display: none !important;
+    }
+
+    // Additional: hide pre blocks that are first child and contain YAML-like content
+    pre:first-child {
+      code {
+        &[class*="yaml"],
+        &[class*="frontmatter"] {
+          display: none !important;
+        }
+      }
+    }
   }
 }

@@ -47,12 +47,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
 
   const handleZenmarkChange = useCallback(
     (newContent: string) => {
-      // Remove zero-width space if present (added to prevent frontmatter parsing issues)
-      if (newContent.startsWith("\u200B")) {
-        setContent(newContent.slice(1));
-      } else {
-        setContent(newContent);
-      }
+      setContent(newContent);
     },
     [setContent]
   );
@@ -241,6 +236,80 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   useEffect(() => {
     if (loading || isSourceMode) return;
 
+    const hideFrontmatter = () => {
+      const contentElement = editorRef.current?.querySelector(
+        ".zenmark-editor-content, .ProseMirror"
+      ) as HTMLElement | null;
+
+      if (!contentElement) return false;
+
+      const children = Array.from(contentElement.children);
+      if (children.length === 0) return false;
+
+      // Strategy 1: Check for HR tags defining frontmatter
+      const firstChild = children[0] as HTMLElement;
+
+      if (firstChild.tagName === "HR") {
+        const secondHrIndex = children.findIndex(
+          (el, idx) => idx > 0 && el.tagName === "HR"
+        );
+
+        if (secondHrIndex !== -1) {
+          // Check if content between HRs looks like YAML
+          const frontmatterElements = children.slice(0, secondHrIndex + 1);
+
+          // Heuristic: Frontmatter usually contains key-value pairs
+          const textContent = frontmatterElements
+            .map(el => el.textContent)
+            .join("\n");
+
+          const hasYamlIndicators =
+            textContent.includes(":") &&
+            (textContent.includes("title:") ||
+              textContent.includes("description:") ||
+              textContent.includes("layout:") ||
+              textContent.includes("date:"));
+
+          if (hasYamlIndicators) {
+            frontmatterElements.forEach((el) => {
+              (el as HTMLElement).style.display = "none";
+            });
+            return true;
+          }
+        }
+      }
+
+      // Strategy 2: Check for code block with YAML class or content
+      const preElements = contentElement.querySelectorAll("pre");
+      let hidden = false;
+
+      preElements.forEach((pre) => {
+        // Only consider if it's the first element or very close to top
+        if (pre !== contentElement.firstElementChild && pre.previousElementSibling?.tagName !== "DIV") {
+          // allow for some wrapper divs maybe? strict for now: must be first
+          if (pre !== contentElement.firstElementChild) return;
+        }
+
+        const code = pre.querySelector("code");
+        if (code) {
+          const text = code.textContent || "";
+          const classList = Array.from(code.classList);
+          const isYaml =
+            classList.some((cls) => cls.includes("yaml") || cls.includes("frontmatter")) ||
+            (text.includes(":") &&
+              (text.includes("title:") || text.includes("description:")) &&
+              (text.trim().startsWith("---") || !text.trim().startsWith("#"))); // Allow if it looks like YAML even without ---
+
+          if (isYaml) {
+            (pre as HTMLElement).style.display = "none";
+            hidden = true;
+          }
+        }
+      });
+
+      return hidden;
+    };
+
     const findScrollContainer = (): HTMLElement | null => {
       const contentWrapper = editorRef.current?.querySelector(
         ".zenmark-editor-content-wrapper"
@@ -315,7 +384,8 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     };
 
     const attemptScroll = () => {
-      return scrollToTop();
+      const frontmatterHidden = hideFrontmatter();
+      return scrollToTop() || frontmatterHidden;
     };
 
     if (attemptScroll()) {
@@ -484,7 +554,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
         <>
           <ZenmarkEditor
             key={uri}
-            value={content.startsWith("---") ? "\u200B" + content : content}
+            value={content}
             onChange={handleZenmarkChange}
             onKeyDown={handleKeyDown}
           />
