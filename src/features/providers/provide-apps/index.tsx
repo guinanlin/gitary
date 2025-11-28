@@ -1,6 +1,7 @@
 import { provideAppAIQuotes } from "./provide-app-ai-quotes";
 import { provideAppAIStoryCards } from "./provide-app-ai-story-cards";
 import { provideAppAIResume } from "./provide-app-ai-resume";
+import { provideAppMeetingMinutes } from "./provide-app-meeting-minutes";
 import { provideStreamingNote } from "./provide-streaming-note";
 import { provideZenNotes } from "./provide-zen-notes";
 import { provideCommunity } from "./provide-community";
@@ -15,6 +16,7 @@ export const provideApps = createPlugin({
       provideAppAIQuotes,
       provideAppAIStoryCards,
       provideAppAIResume,
+      provideAppMeetingMinutes,
       provideStreamingNote,
       provideZenNotes,
       provideCommunity,
