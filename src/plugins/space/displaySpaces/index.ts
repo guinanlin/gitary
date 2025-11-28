@@ -5,6 +5,9 @@ import { storage } from "@/toolkit/utils/storage";
 import { spaceHelper } from "@/helpers/space.helper";
 import { SpaceDef } from "@/toolkit/types/space";
 import { createPlugin } from "xbook/common/createPlugin";
+import { spaceService } from "@/services/space.service";
+import { t } from "@/i18n/utils";
+import React from "react";
 
 export default createPlugin({
   initilize(xbook) {
@@ -68,5 +71,61 @@ export default createPlugin({
         });
       }
     );
+
+    const invalidSpaceNotifications = new Set<string>();
+
+    xbook.eventBus.on(EventKeys.Space.InvalidSpace, ({ spaceId, owner, repo }) => {
+      if (invalidSpaceNotifications.has(spaceId)) {
+        return;
+      }
+      invalidSpaceNotifications.add(spaceId);
+
+      const space = spaceService.getSpace(spaceId);
+      if (!space) return;
+
+      xbook.notificationService.warning({
+        title: t("space.repositoryNotFound"),
+        description: t("space.deleteInvalidSpace", { owner, repo }),
+        duration: 10000,
+        isClosable: true,
+      });
+
+      setTimeout(() => {
+        if (!spaceService.getSpace(spaceId)) {
+          invalidSpaceNotifications.delete(spaceId);
+          return;
+        }
+
+        const modal = xbook.modalService.createModal({
+          title: t("space.repositoryNotFound"),
+          content: React.createElement(
+            "div",
+            { style: { padding: "1rem 0" } },
+            React.createElement(
+              "p",
+              { style: { marginBottom: "1rem" } },
+              t("space.deleteInvalidSpace", { owner, repo })
+            )
+          ),
+          okText: t("space.deleteSpace"),
+          cancelText: t("common.cancel"),
+          footer: true,
+          onOk: () => {
+            spaceService.getSpaceStore().getActions().delete(spaceId);
+            invalidSpaceNotifications.delete(spaceId);
+            xbook.notificationService.success({
+              title: t("space.spaceDeleted"),
+              duration: 3000,
+            });
+            modal.close();
+          },
+          onCancel: () => {
+            invalidSpaceNotifications.delete(spaceId);
+            modal.close();
+          },
+        });
+        modal.open();
+      }, 1000);
+    });
   },
 });

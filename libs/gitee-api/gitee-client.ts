@@ -91,11 +91,16 @@ export const getUrlParam = (name: string) => {
   return urlParams.get(name);
 };
 const URLBuilder = (() => {
-  const encodePath = (path: string) =>
-    path
+  const encodePath = (path: string) => {
+    if (!path || path === "/") {
+      return "";
+    }
+    return path
       .split("/")
+      .filter((segment) => segment !== "")
       .map((segment) => encodeURIComponent(segment))
       .join("/");
+  };
 
   const getUserInfo = () => `${API_BASE_URL}/user`;
   const getBranchList = (owner, repo) =>
@@ -104,8 +109,12 @@ const URLBuilder = (() => {
     `${API_BASE_URL}/repos/${owner}/${repo}/branches`;
   const getBranch = (owner, repo, branch) =>
     `${API_BASE_URL}/repos/${owner}/${repo}/branches/${branch}`;
-  const getPathContents = (owner, repo, path) =>
-    `${API_BASE_URL}/repos/${owner}/${repo}/contents/${encodePath(path)}`;
+  const getPathContents = (owner, repo, path) => {
+    const encodedPath = encodePath(path);
+    return encodedPath
+      ? `${API_BASE_URL}/repos/${owner}/${repo}/contents/${encodedPath}`
+      : `${API_BASE_URL}/repos/${owner}/${repo}/contents`;
+  };
   const createFile = (owner, repo, path) =>
     `${API_BASE_URL}/repos/${owner}/${repo}/contents/${encodePath(path)}`;
   const updateFile = (owner, repo, path) =>
@@ -234,13 +243,16 @@ export const createGiteeClient = ({
   };
 
   const getPathInfo = async ({ owner, repo, path }) => {
+    const params: Record<string, any> = {
+      access_token: getAccessToken(),
+      owner,
+      repo,
+    };
+    if (path && path !== "/" && path !== "") {
+      params.path = path;
+    }
     return axios.get(URLBuilder.getPathContents(owner, repo, path), {
-      params: prepareParams({
-        access_token: getAccessToken(),
-        owner,
-        repo,
-        path,
-      }),
+      params: prepareParams(params),
     });
   };
 

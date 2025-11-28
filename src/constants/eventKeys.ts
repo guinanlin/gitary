@@ -5,6 +5,12 @@ export const EventKeys = {
   RequestRedirectAuthPage: typedKey<string>("requestRedirectAuthPage"),
   Space: {
     SpacesChanged: typedKey<SpaceDef[]>("spaces:changed"),
+    InvalidSpace: typedKey<{
+      spaceId: string;
+      owner: string;
+      repo: string;
+      error: string;
+    }>("spaces:invalid"),
   },
   ActivityBar: {
     DragItem: typedKey<{

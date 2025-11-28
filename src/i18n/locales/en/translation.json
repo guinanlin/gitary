@@ -73,7 +73,10 @@
     "readOnlySpaceAddFailed": "Failed to add read-only space",
     "readonly": "Read-Only",
     "guideAddSpaceTitle": "Get Started: Add a Workspace",
-    "guideAddSpaceDesc": "Click the plus icon on the left to connect GitHub / Gitee and open your repository as a space."
+    "guideAddSpaceDesc": "Click the plus icon on the left to connect GitHub / Gitee and open your repository as a space.",
+    "repositoryNotFound": "Repository not found",
+    "deleteInvalidSpace": "The repository {{owner}}/{{repo}} does not exist or is inaccessible. Do you want to remove it?",
+    "spaceDeleted": "Space deleted successfully"
   },
   "file": {
     "saveSuccess": "Save successful",

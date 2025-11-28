@@ -59,36 +59,44 @@ export class GitRepoFileSystemProvider implements FileSystemProvider {
   }
 
   async readDirectory(uri: Uri): Promise<[string, FileType][]> {
-    // Implement the logic to read the contents of a directory from Gitee using your GiteeClient
-    // You can use the provided uri to determine which directory to read.
-    // Use the GiteeClient to fetch the directory contents and return them as an array of [string, FileType] pairs.
-
-    const path = uri.path.endsWith("/") ? uri.path : uri.path + "/"; // Extract the path from the Uri
-    const resp = await this.gitClient.File.getInfo({
-      owner: this.owner,
-      repo: this.repo,
-      path,
-    });
-    const directoryInfo = resp.data as any;
-
-    // Gitee API 可能在某些情况下返回对象而不是数组，这里做一层兼容处理。
-    if (!Array.isArray(directoryInfo)) {
-      if (directoryInfo && typeof directoryInfo === "object" && "name" in directoryInfo && "type" in directoryInfo) {
-        const item = directoryInfo as { name: string; type: string };
-        return [
-          [
-            item.name,
-            item.type === "file" ? FileType.File : FileType.Directory,
-          ],
-        ];
+    try {
+      let path = uri.path;
+      if (path === "/" || path === "") {
+        path = "";
+      } else {
+        path = path.endsWith("/") ? path.slice(0, -1) : path;
       }
-      return [];
-    }
 
-    return directoryInfo.map((item: { name: string; type: string }) => [
-      item.name,
-      item.type === "file" ? FileType.File : FileType.Directory,
-    ]);
+      const resp = await this.gitClient.File.getInfo({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+      });
+      const directoryInfo = resp.data as any;
+
+      if (!Array.isArray(directoryInfo)) {
+        if (directoryInfo && typeof directoryInfo === "object" && "name" in directoryInfo && "type" in directoryInfo) {
+          const item = directoryInfo as { name: string; type: string };
+          return [
+            [
+              item.name,
+              item.type === "file" ? FileType.File : FileType.Directory,
+            ],
+          ];
+        }
+        return [];
+      }
+
+      return directoryInfo.map((item: { name: string; type: string }) => [
+        item.name,
+        item.type === "file" ? FileType.File : FileType.Directory,
+      ]);
+    } catch (error: any) {
+      if (error?.status === 404 || error?.response?.status === 404) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async readFile(uri: Uri): Promise<Uint8Array> {

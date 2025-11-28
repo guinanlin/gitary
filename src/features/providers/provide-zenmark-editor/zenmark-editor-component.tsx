@@ -45,6 +45,13 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     [setContent]
   );
 
+  const handleZenmarkChange = useCallback(
+    (newContent: string) => {
+      setContent(newContent);
+    },
+    [setContent]
+  );
+
   const monacoKeyBindings = useMemo(
     () => [
       {
@@ -71,6 +78,41 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     }),
     []
   );
+
+  const handleKeyDown = useCallback((event: {
+    keyCode: number;
+    code: string;
+    key: string;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+    preventDefault: () => void;
+    stopPropagation: () => void;
+  }) => {
+    const saveKeybinding = KeyMod.CtrlCmd | KeyCode.KEY_S;
+    
+    if (matchesKeybinding(event, saveKeybinding)) {
+      event.preventDefault();
+      event.stopPropagation();
+      flush();
+      return true;
+    }
+
+    const isToggleSource = 
+      (event.ctrlKey || event.metaKey) &&
+      (event.key === "/" || event.code === "Slash") &&
+      !event.shiftKey;
+    
+    if (isToggleSource) {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsSourceMode((prev) => !prev);
+      return true;
+    }
+    
+    return false;
+  }, [flush]);
 
   useEffect(() => {
     const handleDocumentKeyDown = (event: KeyboardEvent) => {
@@ -209,41 +251,6 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     );
   }
 
-  const handleKeyDown = (event: {
-    keyCode: number;
-    code: string;
-    key: string;
-    ctrlKey: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    metaKey: boolean;
-    preventDefault: () => void;
-    stopPropagation: () => void;
-  }) => {
-    const saveKeybinding = KeyMod.CtrlCmd | KeyCode.KEY_S;
-    
-    if (matchesKeybinding(event, saveKeybinding)) {
-      event.preventDefault();
-      event.stopPropagation();
-      flush();
-      return true;
-    }
-
-    const isToggleSource = 
-      (event.ctrlKey || event.metaKey) &&
-      (event.key === "/" || event.code === "Slash") &&
-      !event.shiftKey;
-    
-    if (isToggleSource) {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsSourceMode((prev) => !prev);
-      return true;
-    }
-    
-    return false;
-  };
-
   const toggleButton = (
     <TabIconButton
       className="zenmark-editor-toggle-button"
@@ -360,10 +367,9 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       ) : (
         <>
           <ZenmarkEditor
+            key={uri}
             value={content}
-            onChange={(newContent) => {
-              setContent(newContent);
-            }}
+            onChange={handleZenmarkChange}
             onKeyDown={handleKeyDown}
           />
           {toolbarElement && createPortal(toggleButton, toolbarElement)}

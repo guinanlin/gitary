@@ -10,6 +10,9 @@ import {
 } from "@/toolkit/vscode/file-system";
 import { Uri } from "@/toolkit/vscode/uri";
 import { stagingService } from "@/services/staging.service";
+import { EventKeys } from "@/constants/eventKeys";
+import { spaceService } from "@/services/space.service";
+import xbook from "xbook/index";
 
 export class SpaceFileSystemProviderProxy implements FileSystemProvider {
   private readonly _onDidChangeFile = new EventEmitter<
@@ -57,7 +60,24 @@ export class SpaceFileSystemProviderProxy implements FileSystemProvider {
     if (uri.authority !== this.spaceId) {
       throw new Error(`Invalid space ID: ${uri.authority}`);
     }
-    return this.provider.readDirectory(uri);
+    return Promise.resolve(this.provider.readDirectory(uri)).catch((error: any) => {
+      if (error?.status === 404 || error?.response?.status === 404) {
+        const space = spaceService.getSpace(this.spaceId);
+        if (space && (space.platform === "gitee" || space.platform === "github" || space.platform === "gitcode")) {
+          const isRootPath = uri.path === "/" || uri.path === "";
+          if (isRootPath) {
+            xbook.eventBus.emit(EventKeys.Space.InvalidSpace, {
+              spaceId: this.spaceId,
+              owner: space.owner,
+              repo: space.repo,
+              error: "Repository not found (404)",
+            });
+          }
+        }
+        return [];
+      }
+      throw error;
+    });
   }
 
   // 文件创建

@@ -73,7 +73,10 @@
     "readOnlySpaceAddFailed": "添加只读空间失败",
     "readonly": "只读",
     "guideAddSpaceTitle": "开始使用：添加工作空间",
-    "guideAddSpaceDesc": "点击左侧加号，连接 GitHub / Gitee，并将你的仓库打开为空间。"
+    "guideAddSpaceDesc": "点击左侧加号，连接 GitHub / Gitee，并将你的仓库打开为空间。",
+    "repositoryNotFound": "仓库未找到",
+    "deleteInvalidSpace": "仓库 {{owner}}/{{repo}} 不存在或无法访问，是否删除此空间？",
+    "spaceDeleted": "空间已删除"
   },
   "file": {
     "saveSuccess": "保存成功",

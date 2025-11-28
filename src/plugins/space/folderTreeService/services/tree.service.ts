@@ -170,7 +170,7 @@ export const createTreeService = (
       spaceId: string,
       node: TreeDataNode<FolderTreeNode>
     ): Promise<TreeDataNode<FolderTreeNode>> => {
-      const oldNode = dataStore.getNode(node.id)!;
+      const oldNode = dataStore.getNode(node.id);
       const viewState = viewStateStore.getData().find((v) => v.id === node.id);
       if (!viewState || !viewState.expanded) return node;
 
@@ -186,11 +186,18 @@ export const createTreeService = (
         ...viewState,
         loading: true,
       });
-      const info = await xbook.fs.readDirectory(uri);
-      // viewStateStore.getActions().update({
-      //   ...viewState,
-      //   loading: false,
-      // });
+
+      let info: [string, FileType][];
+      try {
+        info = await xbook.fs.readDirectory(uri);
+      } catch (error) {
+        this.updateViewState(node.id, { loading: false });
+        return {
+          ...node,
+          children: oldNode?.children || [],
+        };
+      }
+
       this.updateViewState(node.id, { loading: false });
 
       const dirInfo = info.map(([name, type]) => {
@@ -211,7 +218,7 @@ export const createTreeService = (
         children: await Promise.all(
           dirInfo
             .map((child) => ({
-              ...oldNode.children?.find((c) => c.path == child.path),
+              ...(oldNode?.children?.find((c) => c.path == child.path) || {}),
               ...child,
             }))
             .map((child) => ({
@@ -228,12 +235,19 @@ export const createTreeService = (
     };
 
     deepRefresh = async (id: string) => {
-      const node = dataStore.getNode(id)!;
-      const updatedNode = await this.readTreeReferToViewState(space.id, node);
-      dataStore.getActions().update({ node: updatedNode });
-      eventBus.emit(TreeEventKeys.NodeContentLoaded, {
-        node: updatedNode,
-      });
+      try {
+        const node = dataStore.getNode(id);
+        if (!node) {
+          return;
+        }
+        const updatedNode = await this.readTreeReferToViewState(space.id, node);
+        dataStore.getActions().update({ node: updatedNode });
+        eventBus.emit(TreeEventKeys.NodeContentLoaded, {
+          node: updatedNode,
+        });
+      } catch (error) {
+        console.error(`[TreeService] Error refreshing node ${id}:`, error);
+      }
     };
 
     focusNode = (id: string) => {
