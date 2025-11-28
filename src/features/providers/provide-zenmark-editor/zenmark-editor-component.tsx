@@ -47,7 +47,12 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
 
   const handleZenmarkChange = useCallback(
     (newContent: string) => {
-      setContent(newContent);
+      // Remove zero-width space if present (added to prevent frontmatter parsing issues)
+      if (newContent.startsWith("\u200B")) {
+        setContent(newContent.slice(1));
+      } else {
+        setContent(newContent);
+      }
     },
     [setContent]
   );
@@ -91,7 +96,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     stopPropagation: () => void;
   }) => {
     const saveKeybinding = KeyMod.CtrlCmd | KeyCode.KEY_S;
-    
+
     if (matchesKeybinding(event, saveKeybinding)) {
       event.preventDefault();
       event.stopPropagation();
@@ -99,18 +104,18 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       return true;
     }
 
-    const isToggleSource = 
+    const isToggleSource =
       (event.ctrlKey || event.metaKey) &&
       (event.key === "/" || event.code === "Slash") &&
       !event.shiftKey;
-    
+
     if (isToggleSource) {
       event.preventDefault();
       event.stopPropagation();
       setIsSourceMode((prev) => !prev);
       return true;
     }
-    
+
     return false;
   }, [flush]);
 
@@ -232,6 +237,117 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       }
     };
   }, [loading, content]);
+
+  useEffect(() => {
+    if (loading || isSourceMode) return;
+
+    const findScrollContainer = (): HTMLElement | null => {
+      const contentWrapper = editorRef.current?.querySelector(
+        ".zenmark-editor-content-wrapper"
+      ) as HTMLElement | null;
+
+      if (contentWrapper) {
+        return contentWrapper;
+      }
+
+      const contentElement = editorRef.current?.querySelector(
+        ".zenmark-editor-content"
+      ) as HTMLElement | null;
+
+      if (contentElement) {
+        const scrollContainer = contentElement.closest('[class*="scroll"]') as HTMLElement | null;
+        if (scrollContainer) {
+          return scrollContainer;
+        }
+
+        const parentWithScroll = contentElement.parentElement;
+        if (parentWithScroll && parentWithScroll.scrollHeight > parentWithScroll.clientHeight) {
+          return parentWithScroll;
+        }
+      }
+
+      const proseMirror = editorRef.current?.querySelector(".ProseMirror") as HTMLElement | null;
+      if (proseMirror) {
+        const scrollContainer = proseMirror.closest('[class*="scroll"]') as HTMLElement | null;
+        if (scrollContainer) {
+          return scrollContainer;
+        }
+      }
+
+      return null;
+    };
+
+    const scrollToTop = () => {
+      const scrollContainer = findScrollContainer();
+      if (!scrollContainer) {
+        return false;
+      }
+
+      scrollContainer.scrollTop = 0;
+
+      const contentElement = editorRef.current?.querySelector(
+        ".zenmark-editor-content, .ProseMirror"
+      ) as HTMLElement | null;
+
+      if (contentElement) {
+        const allElements = contentElement.querySelectorAll("hr, h1, h2, h3, h4, h5, h6, p, ul, ol, blockquote");
+        if (allElements.length > 0) {
+          const firstElement = allElements[0] as HTMLElement;
+          const rect = firstElement.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+
+          if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+            setTimeout(() => {
+              firstElement.scrollIntoView({ behavior: "auto", block: "start" });
+            }, 50);
+          }
+        } else {
+          const firstChild = contentElement.firstElementChild as HTMLElement | null;
+          if (firstChild) {
+            setTimeout(() => {
+              firstChild.scrollIntoView({ behavior: "auto", block: "start" });
+            }, 50);
+          }
+        }
+      }
+
+      return true;
+    };
+
+    const attemptScroll = () => {
+      return scrollToTop();
+    };
+
+    if (attemptScroll()) {
+      const retryTimeout = setTimeout(() => {
+        attemptScroll();
+      }, 100);
+      return () => clearTimeout(retryTimeout);
+    }
+
+    const observer = new MutationObserver(() => {
+      if (attemptScroll()) {
+        observer.disconnect();
+      }
+    });
+
+    if (editorRef.current) {
+      observer.observe(editorRef.current, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    const timeout = setTimeout(() => {
+      observer.disconnect();
+      attemptScroll();
+    }, 2000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeout);
+    };
+  }, [loading, content, isSourceMode, uri]);
 
   if (loading) {
     return (
@@ -368,7 +484,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
         <>
           <ZenmarkEditor
             key={uri}
-            value={content}
+            value={content.startsWith("---") ? "\u200B" + content : content}
             onChange={handleZenmarkChange}
             onKeyDown={handleKeyDown}
           />

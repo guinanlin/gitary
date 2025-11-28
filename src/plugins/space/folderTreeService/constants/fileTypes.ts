@@ -23,7 +23,7 @@ export interface FileTypeConfig {
 
 export const FILE_TYPES: Record<string, FileTypeConfig> = {
   markdown: {
-    extensions: [".md", ".markdown"],
+    extensions: [".md", ".markdown", ".mdx"],
     icon: SiMarkdown,
     color: "#14668b",
   },

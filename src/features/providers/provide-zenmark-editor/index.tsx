@@ -17,7 +17,7 @@ export default createPlugin({
       showInTreeMenu: true,
       // Higher than generic text viewer so markdown defaults to Zenmark.
       priority: -10,
-      match: [".md", ".markdown", ".MD"],
+      match: [".md", ".markdown", ".MD", ".mdx", ".MDX"],
       init: (uri: string) => {
         openFilePageWithLoading({
           xbook,
