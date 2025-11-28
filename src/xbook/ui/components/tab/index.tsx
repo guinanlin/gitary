@@ -103,14 +103,16 @@ export const Tab: FC<TabProps> = ({
       {(stretch || width || minWidth) && <Box flexGrow={1} />}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-0 h-auto min-w-0 hover:bg-transparent hover-visible"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            type="button"
+            className="p-0 h-auto min-w-0 hover:bg-transparent hover-visible inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
           >
             <Icon as={AiOutlineMore} />
-          </Button>
+          </button>
         </PopoverTrigger>
         <PopoverContent 
           className="w-48 p-1" 

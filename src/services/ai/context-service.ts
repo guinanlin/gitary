@@ -33,44 +33,67 @@ export interface AIContext {
 
 export class AIContextService {
   async getCurrentPageContext(): Promise<{ uri?: string; openerId?: string } | undefined> {
-    console.log("[AIContextService] Getting current page context...");
-    let page = layoutService.pageBox.getCurrentPage?.();
+    try {
+      console.log("[AIContextService] Getting current page context...");
 
-    if (!page) {
-      console.warn("[AIContextService] layoutService.pageBox.getCurrentPage() returned undefined. Trying to find active page from list.");
-      const pageList = layoutService.pageBox.getPageList?.() || [];
-      page = pageList.find(p => p.active);
-    }
+      if (!layoutService || !layoutService.pageBox) {
+        console.warn("[AIContextService] layoutService or pageBox not available");
+        return undefined;
+      }
 
-    if (!page) {
-      console.warn("[AIContextService] No active page found.");
+      let page = layoutService.pageBox.getCurrentPage?.();
+
+      if (!page) {
+        console.warn("[AIContextService] layoutService.pageBox.getCurrentPage() returned undefined. Trying to find active page from list.");
+        const pageList = layoutService.pageBox.getPageList?.() || [];
+        page = pageList.find(p => p.active);
+      }
+
+      if (!page) {
+        console.warn("[AIContextService] No active page found.");
+        return undefined;
+      }
+
+      console.log("[AIContextService] Found active page:", page);
+
+      const viewData = page.viewData as { type?: string; props?: { uri?: string } } | undefined;
+      const uri = viewData?.props?.uri as string | undefined;
+      const openerId = viewData?.type as string | undefined;
+
+      console.log("[AIContextService] Extracted URI:", uri, "OpenerID:", openerId);
+
+      return { uri, openerId };
+    } catch (error) {
+      console.error("[AIContextService] Error in getCurrentPageContext:", error);
       return undefined;
     }
-
-    console.log("[AIContextService] Found active page:", page);
-
-    const viewData = page.viewData as { type?: string; props?: { uri?: string } } | undefined;
-    const uri = viewData?.props?.uri as string | undefined;
-    const openerId = viewData?.type as string | undefined;
-
-    console.log("[AIContextService] Extracted URI:", uri, "OpenerID:", openerId);
-
-    return { uri, openerId };
   }
 
   async getEditorContext(): Promise<EditorContext | undefined> {
     console.log("[AIContextService] getEditorContext called");
-    const pageContext = await this.getCurrentPageContext();
-    if (!pageContext?.uri) {
-      console.warn("[AIContextService] No URI in page context, skipping editor context.");
-      return undefined;
-    }
-
-    const uri = pageContext.uri;
-    console.log(`[AIContextService] Reading file content for URI: ${uri}`);
     try {
+      if (!fileSystemHelper || !fileSystemHelper.service) {
+        console.warn("[AIContextService] fileSystemHelper not available");
+        return undefined;
+      }
+
+      const pageContext = await this.getCurrentPageContext();
+      if (!pageContext?.uri) {
+        console.warn("[AIContextService] No URI in page context, skipping editor context.");
+        return undefined;
+      }
+
+      const uri = pageContext.uri;
+      console.log(`[AIContextService] Reading file content for URI: ${uri}`);
+
       const startTime = Date.now();
-      const content = await fileSystemHelper.service.read(uri);
+      const content = await Promise.race([
+        fileSystemHelper.service.read(uri),
+        new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error("文件读取超时")), 2000)
+        ),
+      ]);
+
       console.log(`[AIContextService] File read successful. Size: ${content.length} chars. Time: ${Date.now() - startTime}ms`);
 
       const fileName = uri.split("/").pop() || uri;
@@ -91,30 +114,45 @@ export class AIContextService {
   }
 
   async getBrowserTabContext(): Promise<BrowserTabContext | undefined> {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const chromeApi = (window as { chrome?: { tabs?: { query: (queryInfo: { active: boolean; currentWindow: boolean }) => Promise<Array<{ url?: string; title?: string }>> } } }).chrome;
-
-    if (!chromeApi || !chromeApi.tabs) {
-      return undefined;
-    }
-
     try {
-      const tabs = await chromeApi.tabs.query({ active: true, currentWindow: true });
-      if (tabs.length === 0 || !tabs[0]?.url) return undefined;
+      if (typeof window === "undefined") {
+        return undefined;
+      }
 
-      const tab = tabs[0];
-      const url = tab.url;
-      if (!url) return undefined;
+      // 1. Try Chrome Extension API first
+      const win = window as any;
+      const chromeApi = win.chrome;
 
-      return {
-        url,
-        title: tab.title || "",
-      };
+      if (chromeApi && chromeApi.tabs && typeof chromeApi.tabs.query === 'function') {
+        try {
+          const queryPromise = chromeApi.tabs.query({ active: true, currentWindow: true });
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("浏览器标签页查询超时")), 2000)
+          );
+
+          const tabs = await Promise.race([queryPromise, timeoutPromise]) as any[];
+          if (tabs && tabs.length > 0 && tabs[0]?.url) {
+            return {
+              url: tabs[0].url,
+              title: tabs[0].title || "",
+            };
+          }
+        } catch (e) {
+          console.warn("[AIContextService] Chrome tabs query failed, falling back to window location:", e);
+        }
+      }
+
+      // 2. Fallback to standard Window API (for web app usage)
+      if (window.location && window.location.href) {
+        return {
+          url: window.location.href,
+          title: document.title || "",
+        };
+      }
+
+      return undefined;
     } catch (error) {
-      console.warn("Failed to get browser tab context:", error);
+      console.warn("[AIContextService] Failed to get browser tab context:", error);
       return undefined;
     }
   }
@@ -124,29 +162,87 @@ export class AIContextService {
     includeEditor?: boolean;
     includeProject?: boolean;
   }): Promise<AIContext> {
-    const {
-      includeBrowserTab = true,
-      includeEditor = true,
-      includeProject = false,
-    } = options || {};
+    const startTime = Date.now();
+    console.log("[AIContextService] getFullContext called with options:", options);
 
-    const context: AIContext = {
-      timestamp: Date.now(),
-    };
+    try {
+      const {
+        includeBrowserTab = true,
+        includeEditor = true,
+        includeProject = false,
+      } = options || {};
 
-    if (includeBrowserTab) {
-      context.browserTab = await this.getBrowserTabContext();
+      const context: AIContext = {
+        timestamp: Date.now(),
+      };
+
+      const promises: Promise<void>[] = [];
+
+      if (includeBrowserTab) {
+        const browserTabPromise = this.getBrowserTabContext()
+          .then((browserTab) => {
+            console.log("[AIContextService] Browser tab context resolved");
+            context.browserTab = browserTab;
+          })
+          .catch((error) => {
+            console.warn("[AIContextService] Failed to get browser tab context:", error);
+            context.browserTab = undefined;
+          });
+        promises.push(browserTabPromise);
+      }
+
+      let editorContextPromise: Promise<EditorContext | undefined> | undefined;
+      if (includeEditor) {
+        editorContextPromise = this.getEditorContext()
+          .then((editor) => {
+            console.log("[AIContextService] Editor context resolved");
+            return editor;
+          })
+          .catch((error) => {
+            console.warn("[AIContextService] Failed to get editor context:", error);
+            return undefined;
+          });
+        promises.push(
+          editorContextPromise
+            .then((editor) => {
+              context.editor = editor;
+            })
+            .catch((error) => {
+              console.warn("[AIContextService] Failed to set editor context:", error);
+              context.editor = undefined;
+            })
+        );
+      }
+
+      if (includeProject) {
+        const projectPromise = this.getProjectContext(editorContextPromise)
+          .then((project) => {
+            console.log("[AIContextService] Project context resolved");
+            context.project = project;
+          })
+          .catch((error) => {
+            console.warn("[AIContextService] Failed to get project context:", error);
+            context.project = undefined;
+          });
+        promises.push(projectPromise);
+      }
+
+      console.log(`[AIContextService] Waiting for ${promises.length} promises to settle`);
+      await Promise.allSettled(promises);
+      const elapsed = Date.now() - startTime;
+      console.log(`[AIContextService] getFullContext completed in ${elapsed}ms`);
+
+      return context;
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[AIContextService] getFullContext failed after ${elapsed}ms:`, error);
+      return {
+        timestamp: Date.now(),
+        editor: undefined,
+        browserTab: undefined,
+        project: undefined,
+      };
     }
-
-    if (includeEditor) {
-      context.editor = await this.getEditorContext();
-    }
-
-    if (includeProject) {
-      context.project = await this.getProjectContext();
-    }
-
-    return context;
   }
 
   formatContextForPrompt(context: AIContext): string {
@@ -231,28 +327,42 @@ export class AIContextService {
     return languageMap[ext || ""] || "text";
   }
 
-  private async getProjectContext(): Promise<ProjectContext> {
-    const editorContext = await this.getEditorContext();
-
-    // Get recent files from page list
-    let recentFiles: string[] = [];
+  private async getProjectContext(
+    editorContextPromise?: Promise<EditorContext | undefined>
+  ): Promise<ProjectContext> {
     try {
-      const pageList = layoutService.pageBox.getPageList?.() || [];
-      recentFiles = pageList
-        .map(page => {
-          const viewData = page.viewData as { props?: { uri?: string } } | undefined;
-          return viewData?.props?.uri;
-        })
-        .filter((uri): uri is string => !!uri)
-        .slice(0, 10); // Limit to 10 recent files
-    } catch (e) {
-      console.warn("[AIContextService] Failed to get recent files:", e);
-    }
+      const editorContext = editorContextPromise
+        ? await editorContextPromise
+        : await this.getEditorContext();
 
-    return {
-      currentFile: editorContext?.uri,
-      recentFiles,
-    };
+      // Get recent files from page list
+      let recentFiles: string[] = [];
+      try {
+        if (layoutService && layoutService.pageBox) {
+          const pageList = layoutService.pageBox.getPageList?.() || [];
+          recentFiles = pageList
+            .map(page => {
+              const viewData = page.viewData as { props?: { uri?: string } } | undefined;
+              return viewData?.props?.uri;
+            })
+            .filter((uri): uri is string => !!uri)
+            .slice(0, 10); // Limit to 10 recent files
+        }
+      } catch (e) {
+        console.warn("[AIContextService] Failed to get recent files:", e);
+      }
+
+      return {
+        currentFile: editorContext?.uri,
+        recentFiles,
+      };
+    } catch (error) {
+      console.error("[AIContextService] Error in getProjectContext:", error);
+      return {
+        currentFile: undefined,
+        recentFiles: [],
+      };
+    }
   }
 }
 

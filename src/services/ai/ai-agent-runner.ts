@@ -59,10 +59,38 @@ class AIGatewayAgent implements IAgent {
             } as any
           ) as unknown as Observable<AgentEvent>;
 
+          const pendingToolCalls = new Map<string, { id: string; name: string; args: string }>();
+          
           innerSub = raw$.subscribe({
-            next: (evt) => subscriber.next(evt),
+            next: (evt) => {
+              if (evt.type === "TOOL_CALL_START") {
+                pendingToolCalls.set(evt.toolCallId, {
+                  id: evt.toolCallId,
+                  name: evt.toolName,
+                  args: "",
+                });
+              }
+              if (evt.type === "TOOL_CALL_ARGS_DELTA") {
+                const tc = pendingToolCalls.get(evt.toolCallId);
+                if (tc) tc.args += evt.argsDelta;
+              }
+              if (evt.type === "TOOL_CALL_END") {
+                pendingToolCalls.delete(evt.toolCallId);
+              }
+              subscriber.next(evt);
+            },
             error: (err) => subscriber.error(err),
-            complete: () => subscriber.complete(),
+            complete: () => {
+              for (const tc of pendingToolCalls.values()) {
+                console.log("[AIGatewayAgent] 补发 TOOL_CALL_END 事件:", tc.id);
+                subscriber.next({
+                  type: "TOOL_CALL_END",
+                  toolCallId: tc.id,
+                } as AgentEvent);
+              }
+              pendingToolCalls.clear();
+              subscriber.complete();
+            },
           });
         })
         .catch((err) => {

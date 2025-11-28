@@ -38,19 +38,90 @@ export const getWorkspaceContextTool: Tool<
     additionalProperties: false,
   },
   async execute(args) {
-    const {
-      includeBrowserTab = true,
-      includeEditor = true,
-      includeProject = false,
-    } = args ?? {};
+    const startTime = Date.now();
+    console.log("[get_workspace_context] Called with args:", JSON.stringify(args));
 
-    const context = await aiContextService.getFullContext({
-      includeBrowserTab,
-      includeEditor,
-      includeProject,
-    });
+    // Fallback context to return in case of any failure
+    const fallbackContext: AIContext = {
+      timestamp: Date.now(),
+      editor: undefined,
+      browserTab: undefined,
+      project: undefined,
+    };
 
-    return context;
+    try {
+      let normalizedArgs: {
+        includeBrowserTab?: boolean;
+        includeEditor?: boolean;
+        includeProject?: boolean;
+      } = {};
+
+      if (args && typeof args === "object") {
+        if ("includeBrowserTab" in args && typeof args.includeBrowserTab === "boolean") {
+          normalizedArgs.includeBrowserTab = args.includeBrowserTab;
+        }
+        if ("includeEditor" in args && typeof args.includeEditor === "boolean") {
+          normalizedArgs.includeEditor = args.includeEditor;
+        }
+        if ("includeProject" in args && typeof args.includeProject === "boolean") {
+          normalizedArgs.includeProject = args.includeProject;
+        }
+      }
+
+      const {
+        includeBrowserTab = true,
+        includeEditor = true,
+        includeProject = false,
+      } = normalizedArgs;
+
+      console.log("[get_workspace_context] Resolved options:", {
+        includeBrowserTab,
+        includeEditor,
+        includeProject,
+      });
+
+      // Create a promise that rejects after a strict timeout
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => {
+          reject(new Error(`Timeout after 5000ms`));
+        }, 5000)
+      );
+
+      // Wrap the service call to ensure it's a promise
+      const contextPromise = Promise.resolve().then(() =>
+        aiContextService.getFullContext({
+          includeBrowserTab,
+          includeEditor,
+          includeProject,
+        })
+      );
+
+      // Race against the timeout
+      const context = await Promise.race([contextPromise, timeoutPromise]);
+      const elapsed = Date.now() - startTime;
+
+      if (!context || typeof context !== "object") {
+        console.warn("[get_workspace_context] Invalid context returned, using fallback");
+        return fallbackContext;
+      }
+
+      const result: AIContext = {
+        timestamp: context.timestamp || Date.now(),
+        editor: context.editor,
+        browserTab: context.browserTab,
+        project: context.project,
+      };
+
+      console.log(`[get_workspace_context] Successfully got context in ${elapsed}ms`);
+      return result;
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[get_workspace_context] Error after ${elapsed}ms:`, error);
+
+      // Always return a valid object, never throw, to prevent the tool call from hanging the UI
+      console.log("[get_workspace_context] Returning fallback context due to error");
+      return fallbackContext;
+    }
   },
 };
 
