@@ -35,6 +35,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const [toolbarElement, setToolbarElement] = useState<HTMLElement | null>(null);
   const buttonContainerRef = useRef<HTMLDivElement | null>(null);
   const rightButtonContainerRef = useRef<HTMLDivElement | null>(null);
+  const [rightButtonContainerElement, setRightButtonContainerElement] = useState<HTMLElement | null>(null);
   const { open, activePaneId, openPane, closePane } = useGlobalSidecar();
   const [isSourceMode, setIsSourceMode] = useState(false);
 
@@ -194,6 +195,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
           toolbar.removeChild(rightButtonContainerRef.current);
           toolbar.appendChild(rightButtonContainerRef.current);
         }
+        setRightButtonContainerElement(rightButtonContainerRef.current);
         return true;
       }
       return false;
@@ -230,6 +232,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
         rightButtonContainerRef.current.parentNode.removeChild(rightButtonContainerRef.current);
         rightButtonContainerRef.current = null;
       }
+      setRightButtonContainerElement(null);
     };
   }, [loading, content]);
 
@@ -456,7 +459,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   );
 
   const aiAssistantActive = activePaneId === "global-chat" && open;
-  const aiAssistantButton = rightButtonContainerRef.current ? (
+  const aiAssistantButton = rightButtonContainerElement ? (
     <button
       onClick={() => {
         if (aiAssistantActive) {
@@ -516,7 +519,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     </button>
   );
 
-  const sourceModeToggleButton = rightButtonContainerRef.current
+  const sourceModeToggleButton = rightButtonContainerElement
     ? sourceModeToggleButtonElement
     : null;
 
@@ -561,10 +564,10 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
           {toolbarElement && createPortal(toggleButton, toolbarElement)}
         </>
       )}
-      {rightButtonContainerRef.current && (
+      {rightButtonContainerElement && (
         <>
-          {createPortal(sourceModeToggleButtonElement, rightButtonContainerRef.current)}
-          {!isSourceMode && createPortal(aiAssistantButton, rightButtonContainerRef.current)}
+          {createPortal(sourceModeToggleButtonElement, rightButtonContainerElement)}
+          {!isSourceMode && createPortal(aiAssistantButton, rightButtonContainerElement)}
         </>
       )}
     </div>

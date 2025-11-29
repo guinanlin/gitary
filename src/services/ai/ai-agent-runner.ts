@@ -63,7 +63,16 @@ class AIGatewayAgent implements IAgent {
           
           innerSub = raw$.subscribe({
             next: (evt) => {
+              // 记录所有事件以便调试
+              console.log(`[AIGatewayAgent] 收到事件: ${evt.type}`, {
+                toolCallId: (evt as any).toolCallId,
+                toolName: (evt as any).toolName,
+                hasResult: !!(evt as any).result,
+                hasError: !!(evt as any).error,
+              });
+              
               if (evt.type === "TOOL_CALL_START") {
+                console.log(`[AIGatewayAgent] TOOL_CALL_START: ${evt.toolName} (${evt.toolCallId})`);
                 pendingToolCalls.set(evt.toolCallId, {
                   id: evt.toolCallId,
                   name: evt.toolName,
@@ -75,18 +84,35 @@ class AIGatewayAgent implements IAgent {
                 if (tc) tc.args += evt.argsDelta;
               }
               if (evt.type === "TOOL_CALL_END") {
+                const tc = pendingToolCalls.get(evt.toolCallId);
+                console.log(`[AIGatewayAgent] TOOL_CALL_END: ${evt.toolCallId}`, {
+                  toolName: tc?.name,
+                  args: tc?.args,
+                  pendingCount: pendingToolCalls.size,
+                });
                 pendingToolCalls.delete(evt.toolCallId);
+              }
+              // 检查是否有 TOOL_RESULT 事件
+              if ((evt as any).type === "TOOL_RESULT" || (evt as any).result !== undefined) {
+                console.log(`[AIGatewayAgent] TOOL_RESULT 事件:`, evt);
+              }
+              // 检查是否有其他与工具相关的事件
+              if ((evt as any).toolCallId && !["TOOL_CALL_START", "TOOL_CALL_ARGS_DELTA", "TOOL_CALL_END"].includes(evt.type)) {
+                console.log(`[AIGatewayAgent] 工具相关事件 (${evt.type}):`, evt);
               }
               subscriber.next(evt);
             },
             error: (err) => subscriber.error(err),
             complete: () => {
-              for (const tc of pendingToolCalls.values()) {
-                console.log("[AIGatewayAgent] 补发 TOOL_CALL_END 事件:", tc.id);
-                subscriber.next({
-                  type: "TOOL_CALL_END",
-                  toolCallId: tc.id,
-                } as AgentEvent);
+              if (pendingToolCalls.size > 0) {
+                console.log(`[AIGatewayAgent] 流完成，补发 ${pendingToolCalls.size} 个 TOOL_CALL_END 事件`);
+                for (const tc of pendingToolCalls.values()) {
+                  console.log(`[AIGatewayAgent] 补发 TOOL_CALL_END 事件: ${tc.name} (${tc.id})`);
+                  subscriber.next({
+                    type: "TOOL_CALL_END",
+                    toolCallId: tc.id,
+                  } as AgentEvent);
+                }
               }
               pendingToolCalls.clear();
               subscriber.complete();
@@ -205,11 +231,19 @@ function convertUIPartToAIMessages(
       toolCalls: [toolCall],
     };
 
+    const toolResultPayload =
+      // When a tool execution fails, surface the error message to the model
+      // instead of silently sending an empty object. This allows the agent
+      // to gracefully explain the failure or suggest next steps.
+      inv.error && typeof inv.error === "string"
+        ? { error: inv.error }
+        : inv.result ?? {};
+
     const toolResultMessage: AIMessage = {
       role: "tool",
       // For OpenAI-compatible providers, name is used as tool_call_id.
       name: inv.toolCallId,
-      content: JSON.stringify(inv.result ?? {}),
+      content: JSON.stringify(toolResultPayload),
     };
     messages.push(assistantToolCallMessage, toolResultMessage);
   }

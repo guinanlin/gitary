@@ -283,6 +283,71 @@ interface FileSystemProvider {
 - ✅ 平台无关的业务逻辑
 - ✅ 统一的权限与认证管理
 
+#### 2.4 AI Assistant 架构定位
+
+**AI Assistant 是一个跨层功能模块，在架构中分布在多个层级：**
+
+**架构分层：**
+
+```
+┌─────────────────────────────────────────┐
+│         应用层 (Application)            │
+│  - features/global-sidecar-providers/   │
+│    └── panes/global-chat-panel.tsx     │  ← UI 组件层
+│  - components/ai-resume-chat.tsx        │  ← 特定场景组件
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│       插件层 (Plugin System)           │
+│  - featureGlobalSidecar (插件)          │  ← 插件注册
+│    └── 注册为全局侧边栏面板             │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│       服务层 (Service Layer)           │
+│  - services/ai/                         │  ← 核心服务层
+│    ├── gateway.ts (AI网关服务)          │
+│    ├── providers.ts (多提供商支持)      │
+│    ├── ai-agent-runner.ts (Agent运行器) │
+│    ├── ai-tool-registry.ts (工具注册表) │
+│    ├── context-service.ts (上下文服务)  │
+│    └── types.ts (类型定义)              │
+└─────────────────────────────────────────┘
+```
+
+**核心组件说明：**
+
+1. **服务层 (`src/services/ai/`)** - 核心 AI 能力
+   - **AIGatewayService**：统一的 AI 网关，封装与 AI 提供商的通信
+   - **AIProvider**：多提供商支持（OpenAI、Dashscope、OpenRouter、DeepSeek、Kimi、GLM）
+   - **AIGatewayAgent**：实现 `IAgent` 接口，桥接 `@agent-labs/agent-chat` 与现有 AI 服务
+   - **AIToolRegistry**：AI 工具注册表，管理可用的 AI 工具（文件操作、Excalidraw 等）
+   - **ContextService**：上下文管理服务，提供当前工作空间信息
+
+2. **应用层 (`src/features/global-sidecar-providers/`)** - UI 组件与功能集成
+   - **GlobalChatPanel**：全局聊天面板组件，提供跨页面的 AI 对话界面
+   - **工具集成**：集成文件系统工具、Excalidraw 工具、工作空间上下文工具
+   - **特定场景组件**：如 `AIResumeChat` 用于简历生成场景
+
+3. **插件层** - 通过 xbook 插件系统暴露
+   - **featureGlobalSidecar**：作为 xbook 插件注册全局侧边栏功能
+   - **注册机制**：通过 `registerGlobalSidecarPane` 注册 AI Assistant 面板
+   - **全局访问**：作为全局侧边栏面板，可在任何页面访问
+
+**设计特点：**
+- ✅ **跨层设计**：服务层提供能力，应用层提供 UI，插件层提供集成
+- ✅ **多提供商支持**：统一的接口支持多个 AI 提供商切换
+- ✅ **工具化架构**：通过工具注册表机制，支持动态扩展 AI 能力
+- ✅ **上下文感知**：能够获取当前工作空间、文件等上下文信息
+- ✅ **插件化集成**：通过 xbook 插件系统，作为全局功能提供
+
+**使用流程：**
+1. 用户通过全局侧边栏打开 AI Assistant 面板
+2. UI 组件 (`GlobalChatPanel`) 调用服务层的 `useAgentChat` Hook
+3. `AIGatewayAgent` 将用户消息转换为 AI 请求，通过 `AIGatewayService` 发送
+4. AI 响应通过流式返回，支持工具调用（如文件操作、绘图等）
+5. 工具执行结果反馈给 AI，形成完整的对话循环
+
 ### 3. 状态管理架构
 
 #### 3.1 混合状态管理策略

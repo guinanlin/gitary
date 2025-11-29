@@ -16,6 +16,7 @@ import { aiContextService } from "@/services/ai/context-service";
 import { aiProviderStore } from "@/services/ai/ai-provider.store";
 import type { AIProviderName } from "@/services/ai/providers";
 import { cn } from "@/toolkit/utils/shadcn-utils";
+import { layoutService } from "xbook/services";
 import {
   useAgentChat,
   useParseTools,
@@ -120,23 +121,45 @@ export const GlobalChatPanel = () => {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    const updateContext = async () => {
       try {
         const pageCtx = await aiContextService.getCurrentPageContext();
         const uri = pageCtx?.uri;
-        if (!uri || cancelled) return;
-        const spaceId = spaceHelper.getSpaceIdFromUri(uri);
-        if (!cancelled) {
-          setCurrentSpaceId(spaceId);
+
+        if (cancelled) return;
+
+        if (uri) {
+          const spaceId = spaceHelper.getSpaceIdFromUri(uri);
+          if (!cancelled) {
+            setCurrentSpaceId(spaceId);
+          }
+        } else {
+          if (!cancelled) {
+            setCurrentSpaceId(null);
+          }
         }
       } catch {
         if (!cancelled) {
           setCurrentSpaceId(null);
         }
       }
-    })();
+    };
+
+    updateContext();
+
+    // 监听页面变化，就像原始项目一样
+    const layoutService = (window as any).xbook?.layoutService;
+    const pageBox = layoutService?.pageBox;
+    const subscription = pageBox?.currentPage$?.subscribe(() => {
+      if (!cancelled) {
+        updateContext();
+      }
+    });
+
     return () => {
       cancelled = true;
+      subscription?.unsubscribe();
     };
   }, []);
   useEffect(() => {
