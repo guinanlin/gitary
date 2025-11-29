@@ -9,15 +9,19 @@ export const AddFileSystemProviderForEachSpace = createPlugin({
     // Use singleton services directly
 
     spaceService.subscribeSpaces((spaces) => {
-      spaces.forEach((space) => {
+      spaces.forEach(async (space) => {
         const platform = spacePlatformRegistry.getPlatform(space.platform);
         if (!platform) return;
 
-        const provider = platform.getProvider({
+        const providerOrPromise = platform.getProvider({
           accessToken: authService.getAnyAuthInfo(space.platform, space.owner)?.accessToken,
           owner: space.owner,
           repo: space.repo,
         });
+
+        const provider = providerOrPromise instanceof Promise 
+          ? await providerOrPromise 
+          : providerOrPromise;
 
         const proxyProvider = new SpaceFileSystemProviderProxy(provider, space.id);
         

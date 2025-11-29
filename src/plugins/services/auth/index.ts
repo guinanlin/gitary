@@ -2,6 +2,7 @@ import { EventKeys } from "@/constants/eventKeys";
 import gitee from "@/plugins/services/auth/providers/gitee";
 import github from "@/plugins/services/auth/providers/github";
 import gitcode from "@/plugins/services/auth/providers/gitcode";
+import weiyun from "@/plugins/services/auth/providers/weiyun";
 import { authService } from "@/services/auth.service";
 import { createPlugin } from "xbook/common/createPlugin";
 import { spaceService } from "@/services/space.service";
@@ -22,5 +23,6 @@ export default createPlugin({
     xbook.pluginService.use(gitee);
     xbook.pluginService.use(github);
     xbook.pluginService.use(gitcode);
+    xbook.pluginService.use(weiyun);
   },
 });

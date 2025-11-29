@@ -19,25 +19,99 @@ import { spaceService } from "@/services/space.service";
 import { createGiteeClient } from "libs/gitee-api";
 import { createGithubClient } from "libs/github-api";
 import { createGitcodeClient } from "libs/gitcode-api/gitcode-client";
+import { WeiyunClient } from "@/services/weiyun-client";
+import { WeiyunFolderSelector } from "./weiyun-folder-selector";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, GitBranch, Github, Loader2, Sparkles, ArrowRight, Link as LinkIcon, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, GitBranch, Github, Loader2, Sparkles, ArrowRight, Link as LinkIcon, RefreshCw, Cloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import { forkJoin, from, map, of } from "rxjs";
 import xbook from "xbook";
 import { useTranslation } from "react-i18next";
+import React from "react";
 
 interface AddSpaceMenuProps {
     children: React.ReactNode;
 }
 
+function WeiyunFolderSelectorWrapper({
+    onSelect,
+    onSelectRoot,
+}: {
+    onSelect: (path: string, dirKey: string) => void;
+    onSelectRoot: () => void;
+}) {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [client, setClient] = useState<WeiyunClient | null>(null);
+    const [rootDirKey, setRootDirKey] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadUserInfo = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const authInfo = authService.getAnyAuthInfo("weiyun");
+                if (!authInfo?.accessToken) {
+                    setError("请先授权微云");
+                    return;
+                }
+
+                const weiyunClient = new WeiyunClient({ cookies: authInfo.accessToken });
+                const userInfo = await weiyunClient.diskUserInfoGet();
+                setClient(weiyunClient);
+                setRootDirKey(userInfo.MainDirKey);
+            } catch (err: any) {
+                console.error("Failed to load weiyun user info:", err);
+                setError(err?.message || "加载失败，请重新授权");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadUserInfo();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="ml-6 mr-1 mb-1 rounded-md bg-muted/50 p-2">
+                <div className="py-4 text-center text-xs flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    加载中...
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !client || !rootDirKey) {
+        return (
+            <div className="ml-6 mr-1 mb-1 rounded-md bg-muted/50 p-2">
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                    {error || "加载失败，请重新授权"}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="ml-6 mr-1 mb-1 rounded-md bg-muted/50 p-2">
+            <WeiyunFolderSelector
+                client={client}
+                rootDirKey={rootDirKey}
+                onSelect={onSelect}
+                onSelectRoot={onSelectRoot}
+            />
+        </div>
+    );
+}
+
 const getPlatformRepos = (platform: string) => {
     const accessToken = authService.getAnyAuthInfo(platform)?.accessToken;
     if (!accessToken) return of([]);
-    
+
     const targetCount = 200;
     const perPage = 100;
     const pagesNeeded = Math.ceil(targetCount / perPage);
-    
+
     if (platform === "gitee") {
         const client = createGiteeClient({
             getAccessToken: () => accessToken,
@@ -85,15 +159,18 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
     const githubAuthorized = !!authService.getAnyAuthInfo("github")?.accessToken;
     const giteeAuthorized = !!authService.getAnyAuthInfo("gitee")?.accessToken;
     const gitcodeAuthorized = !!authService.getAnyAuthInfo("gitcode")?.accessToken;
-    
+    const weiyunAuthorized = !!authService.getAnyAuthInfo("weiyun")?.accessToken;
+
     const githubProvider = authProviders.find((p) => p.platform === "github");
     const giteeProvider = authProviders.find((p) => p.platform === "gitee");
     const gitcodeProvider = authProviders.find((p) => p.platform === "gitcode");
+    const weiyunProvider = authProviders.find((p) => p.platform === "weiyun");
 
     // Expanded state
     const [githubExpanded, setGithubExpanded] = useState(false);
     const [giteeExpanded, setGiteeExpanded] = useState(false);
     const [gitcodeExpanded, setGitcodeExpanded] = useState(false);
+    const [weiyunExpanded, setWeiyunExpanded] = useState(false);
 
     // GitHub repos state
     const [githubRepos, setGithubRepos] = useState<{ value: string; label: string; owner: string }[]>([]);
@@ -286,6 +363,79 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
         }
     };
 
+    const handleWeiyunAuth = async () => {
+        if (weiyunProvider) {
+            await weiyunProvider.authenticate({
+                needConfirm: true,
+            });
+        }
+    };
+
+    const handleWeiyunToggle = (event: React.MouseEvent) => {
+        event.preventDefault();
+        if (weiyunAuthorized) {
+            setWeiyunExpanded(!weiyunExpanded);
+        } else {
+            handleWeiyunAuth();
+        }
+    };
+
+    const handleWeiyunSelectFolder = async (path: string, dirKey: string) => {
+        try {
+            const authInfo = authService.getAnyAuthInfo("weiyun");
+            if (!authInfo) {
+                xbook.notificationService.error("请先授权微云");
+                return;
+            }
+
+            // 使用 DirKey 作为 repo（32 位十六进制字符串）
+            // 这样可以直接指定根文件夹，类似于 alist 的配置方式
+            spaceService.addSpace(
+                {
+                    platform: "weiyun",
+                    owner: authInfo.username || "",
+                    repo: dirKey, // 使用 DirKey 而不是路径
+                },
+                {
+                    focus: true,
+                    silent: true,
+                }
+            );
+            xbook.notificationService.success(t("space.workspaceAdded"));
+            setWeiyunExpanded(false);
+        } catch (error) {
+            console.error("Failed to add weiyun space:", error);
+            xbook.notificationService.error(t("space.addFailed"));
+        }
+    };
+
+    const handleWeiyunSelectRoot = async () => {
+        try {
+            const authInfo = authService.getAnyAuthInfo("weiyun");
+            if (!authInfo) {
+                xbook.notificationService.error("请先授权微云");
+                return;
+            }
+
+            spaceService.addSpace(
+                {
+                    platform: "weiyun",
+                    owner: authInfo.username || "",
+                    repo: "/",
+                },
+                {
+                    focus: true,
+                    silent: true,
+                }
+            );
+            xbook.notificationService.success(t("space.workspaceAdded"));
+            setWeiyunExpanded(false);
+        } catch (error) {
+            console.error("Failed to add weiyun space:", error);
+            xbook.notificationService.error(t("space.addFailed"));
+        }
+    };
+
     const handleLocal = async () => {
         const defaultSpaceInfo = { platform: "idb", owner: "root", repo: "home" };
         try {
@@ -326,13 +476,13 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
         setReadOnlyLoading(true);
         try {
             let urlToParse = repoUrl.trim();
-            
+
             if (!urlToParse.startsWith("http://") && !urlToParse.startsWith("https://")) {
                 urlToParse = `https://${urlToParse}`;
             }
-            
+
             const parsed = spaceService.parseRepoUrl(urlToParse);
-            
+
             if (!parsed.platform || !parsed.owner || !parsed.repo) {
                 xbook.notificationService.error(t("space.invalidRepoUrl"));
                 setReadOnlyLoading(false);
@@ -628,6 +778,46 @@ export const AddSpaceMenu = ({ children }: AddSpaceMenuProps) => {
                                 </CommandList>
                             </Command>
                         </div>
+                    )}
+                </div>
+
+                {/* Weiyun Section */}
+                <div className="space-y-1">
+                    <DropdownMenuItem
+                        onClick={handleWeiyunToggle}
+                        className="px-2.5 py-2 cursor-pointer group focus:bg-accent/50"
+                        onSelect={(event) => event.preventDefault()}
+                    >
+                        <div className="flex items-center gap-3 w-full">
+                            <div className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center group-hover:bg-muted/60 transition-colors">
+                                <Cloud className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium leading-tight">腾讯微云</div>
+                                <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                    {weiyunAuthorized ? "选择文件夹" : "需要授权"}
+                                </div>
+                            </div>
+                            {weiyunAuthorized ? (
+                                weiyunExpanded ? (
+                                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                                ) : (
+                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                                )
+                            ) : (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                                    <span>{t("space.goAuthorize")}</span>
+                                    <ArrowRight className="h-3 w-3" />
+                                </div>
+                            )}
+                        </div>
+                    </DropdownMenuItem>
+
+                    {weiyunAuthorized && weiyunExpanded && (
+                        <WeiyunFolderSelectorWrapper
+                            onSelect={handleWeiyunSelectFolder}
+                            onSelectRoot={handleWeiyunSelectRoot}
+                        />
                     )}
                 </div>
 

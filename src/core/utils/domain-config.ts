@@ -5,37 +5,18 @@ export function getCurrentDomain(): string {
   return window.location.hostname;
 }
 
-export function getOAuthConfigKey(): string {
-  const domain = getCurrentDomain();
-  
-  if (domain === 'localhost' || domain === '127.0.0.1') {
-    return 'Localhost5173';
-  }
-  
-  if (domain === 'gitary.app' || domain === 'www.gitary.app') {
-    return 'GitaryApp';
-  }
-  
-  if (domain === 'write.dimstack.com' || domain === 'www.write.dimstack.com') {
-    return 'WriteDimstackCom';
-  }
-
-  // Default to the new primary domain config
-  return 'GitaryApp';
-}
-
 export function isProductionDomain(): boolean {
   const domain = getCurrentDomain();
-  return domain === 'gitary.app' || 
-         domain === 'www.gitary.app' || 
-         domain === 'write.dimstack.com' || 
-         domain === 'www.write.dimstack.com';
+  return domain !== 'localhost' && 
+         domain !== '127.0.0.1' && 
+         !domain.startsWith('192.168.') &&
+         !domain.startsWith('10.') &&
+         !domain.startsWith('172.');
 }
 
 export function getBaseUrl(): string {
   if (typeof window === 'undefined') {
-    // Default to the new primary domain when window is not available
-    return 'https://gitary.app';
+    return '';
   }
   
   const protocol = window.location.protocol;

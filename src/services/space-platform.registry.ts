@@ -9,7 +9,7 @@ export interface SpacePlatformConfig {
     accessToken?: string;
     owner: string;
     repo: string;
-  }) => FileSystemProvider;
+  }) => FileSystemProvider | Promise<FileSystemProvider>;
 }
 
 class SpacePlatformRegistry {
@@ -28,4 +28,4 @@ class SpacePlatformRegistry {
   }
 }
 
-export const spacePlatformRegistry = new SpacePlatformRegistry(); 
+export const spacePlatformRegistry = new SpacePlatformRegistry();
