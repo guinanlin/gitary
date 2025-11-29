@@ -41,7 +41,181 @@
 │  - xbook/ (框架核心)                    │
 │  - libs/ (第三方库封装)                 │
 └─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│      Monorepo 包层 (Packages)          │
+│  - packages/ (可独立发布的包)        │
+│    ├── git-auth/ (Git认证库)          │
+│    ├── git-provider/ (Git文件系统)     │
+│    ├── rx-bean/ (响应式状态管理)       │
+│    ├── rx-nested-bean/ (嵌套状态)      │
+│    └── app-toolkit/ (应用工具包)       │
+└─────────────────────────────────────────┘
 ```
+
+### 1.1 Monorepo 包层详解
+
+项目采用 **pnpm workspace** 的 Monorepo 结构，将核心功能拆分为独立包，便于复用和维护。
+
+#### packages/git-auth (@dimstack/git-auth)
+
+**定位：** Git 平台认证库（可独立发布到 npm）
+
+**核心功能：**
+- OAuth 2.0 认证流程封装
+- 支持 GitHub、Gitee、GitCode 等平台
+- 状态参数管理（防 CSRF）
+- 跨域支持（自定义 HTTP 客户端）
+- 无存储耦合（由使用者控制存储方式）
+
+**使用场景：**
+- 启动认证流程：`auth.startAuth()`
+- 处理回调：`auth.handleCallback()`
+- 获取用户信息：`auth.getUserInfo()`
+
+**设计特点：**
+- ✅ 轻量级：只包含核心认证逻辑，无额外依赖
+- ✅ 安全可靠：基于 OAuth 2.0 标准，支持状态验证
+- ✅ 灵活存储：完全由使用者控制数据存储方式
+
+#### packages/git-provider (@dimstack/git-provider)
+
+**定位：** Git 文件系统提供者（可独立发布到 npm）
+
+**核心功能：**
+- 统一的 Git 提供商接口
+- 将 Git 仓库当作本地文件系统使用
+- 完整的 Git 操作支持（提交、分支、合并等）
+- 支持 GitHub、Gitee 等平台
+
+**核心类：**
+- `GitProvider`：统一接口，定义所有 Git 操作
+- `GitFileSystem`：文件系统抽象，提供 `readFile`、`writeFile` 等 API
+- `GitHubProvider`、`GiteeProvider`：具体平台实现
+
+**使用场景：**
+```typescript
+const provider = new GitHubProvider({ token: 'xxx' });
+const fs = new GitFileSystem(provider, { owner: 'user', repo: 'repo' });
+await fs.writeFile('path/file.md', content, { message: 'commit message' });
+```
+
+**设计特点：**
+- ✅ 统一接口：提供一致的 API，支持多平台
+- ✅ 类型安全：完整的 TypeScript 类型定义
+- ✅ 文件系统抽象：将 Git 仓库当作本地文件系统使用
+
+#### packages/rx-bean
+
+**定位：** 响应式状态管理库（基于 RxJS）
+
+**核心功能：**
+- 基于 `BehaviorSubject` 的响应式状态管理
+- 提供 `get`、`set`、`subscribe`、`use` 等统一 API
+- 支持 React Hook 集成（`useReactBean`）
+- Bean 组合模式（`compose`）
+
+**核心 API：**
+```typescript
+const PageSize = createReactBean("PageSize", 10);
+PageSize.getPageSize();      // 获取值
+PageSize.setPageSize(20);    // 设置值
+PageSize.subscribePageSize(callback); // 订阅变化
+PageSize.usePageSize();      // React Hook
+PageSize.PageSize$;          // Observable
+```
+
+**设计特点：**
+- ✅ 响应式：基于 RxJS Observable
+- ✅ React 友好：提供 Hook 支持
+- ✅ 类型安全：完整的 TypeScript 类型推导
+- ✅ 组合能力：支持多个 Bean 组合
+
+#### packages/rx-nested-bean
+
+**定位：** 嵌套响应式状态管理库
+
+**核心功能：**
+- 支持嵌套对象的状态管理
+- 路径式访问（`bean.namespaces.path`）
+- 冻结机制（`FreezableBehaviorSubject`）
+- 任务管理器（批量更新）
+
+**核心 API：**
+```typescript
+const bean = createNestedBean({ user: { name: 'John', age: 20 } });
+bean.get();                    // 获取整个对象
+bean.namespaces.user.get();    // 获取嵌套属性
+bean.namespaces.user.use();    // React Hook
+bean.namespaces.user.$;        // Observable
+```
+
+**设计特点：**
+- ✅ 嵌套支持：支持任意深度的嵌套对象
+- ✅ 路径访问：通过 `namespaces` 访问嵌套属性
+- ✅ 批量更新：任务管理器确保批量更新的原子性
+- ✅ 性能优化：浅拷贝机制，减少不必要的更新
+
+#### packages/app-toolkit
+
+**定位：** 应用工具包
+
+**核心功能：**
+- Controller 定义工具（`defineController`）
+- Context 管理
+- 实例管理（创建、复用、查找）
+
+**核心 API：**
+```typescript
+const MyController = defineController(
+  (param1, param2) => ({ /* controller logic */ }),
+  { isHook: false }
+);
+
+// 使用
+<MyController.Provider value={instance}>
+  {children}
+</MyController.Provider>
+```
+
+**设计特点：**
+- ✅ Controller 模式：分离业务逻辑和视图
+- ✅ Context 集成：与 React Context 无缝集成
+- ✅ 实例管理：支持创建、复用、查找实例
+
+#### packages/git-provider-example
+
+**定位：** 示例项目
+
+**用途：** 展示 `git-provider` 的使用示例
+
+### 1.2 包之间的依赖关系
+
+```
+git-auth (独立)
+    ↓
+git-provider (依赖 git-auth 的认证结果)
+    ↓
+主应用 (使用 git-provider 和 git-auth)
+
+rx-bean (独立)
+    ↓
+rx-nested-bean (可能依赖 rx-bean)
+    ↓
+主应用 (使用响应式状态管理)
+
+app-toolkit (独立)
+    ↓
+主应用 (使用 Controller 模式)
+```
+
+### 1.3 Monorepo 的优势
+
+1. **代码复用**：核心功能封装为独立包，避免重复代码
+2. **独立版本管理**：每个包可以独立发布和版本控制
+3. **便于测试**：每个包可以独立测试
+4. **易于维护**：修改一个包不影响其他包
+5. **可发布性**：部分包（如 `git-auth`、`git-provider`）可独立发布到 npm
 
 ### 2. 核心架构模式
 

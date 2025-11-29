@@ -84,8 +84,44 @@ export const TreeNodeActionEntry: FC<{
 }> = ({ menuTree }) => {
   const {
     viewSystem: { renderer },
+    eventBus,
   } = useTreeContext();
+  const nodeContext = useTreeNodeContext();
+  const { node, level } = nodeContext;
+  const { isValid } = validateMenuItem(
+    {
+      id: menuTree.id,
+      data: menuTree.data,
+    },
+    {
+      ...node,
+      level,
+    }
+  );
+
   if (!(menuTree.children && menuTree.children.length > 0)) {
+    if (menuTree.data.event && menuTree.data.icon) {
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="focus:outline-none h-6 w-6"
+          disabled={!isValid}
+          onClick={(e) => {
+            if (isValid && menuTree.data.event) {
+              eventBus.emit(menuTree.data.event, { ...nodeContext, event: e });
+              e.stopPropagation();
+              e.preventDefault();
+            }
+          }}
+          title={menuTree.data.label || menuTree.data.name}
+        >
+          {renderer.render({
+            type: menuTree.data.icon,
+          })}
+        </Button>
+      );
+    }
     return null;
   }
   return (

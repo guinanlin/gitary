@@ -23,6 +23,17 @@ export default createTreeHelper<FolderTreeNode>().createPlugin({
     serviceBus.expose(TreeServicePoints.RefershNode, treeService.deepRefresh);
     addNodeMenuItems([
       {
+        id: "refreshNodeButton",
+        key: "refreshNodeButton",
+        event: TreeEventKeys.RefreshNode.name,
+        name: t("tree.refresh"),
+        label: t("tree.refresh"),
+        when: "level === 0",
+        icon: "AiOutlineReload",
+        group: "root",
+        order: -1,
+      },
+      {
         id: "refreshNode",
         key: "refreshNode",
         event: TreeEventKeys.RefreshNode.name,
