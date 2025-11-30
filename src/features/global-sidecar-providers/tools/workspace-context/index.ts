@@ -17,30 +17,68 @@ const workspaceContextParams = z.object({
   ),
 });
 
+function formatWorkspaceContext(context: AIContext): string {
+  const parts: string[] = [];
+
+  if (context.browserTab) {
+    parts.push(`🌐 浏览器标签页：${context.browserTab.title || '无标题'}`);
+    if (context.browserTab.url) {
+      parts.push(`   地址：${context.browserTab.url}`);
+    }
+  }
+
+  if (context.editor) {
+    parts.push(`📝 编辑器：${context.editor.fileName}`);
+    if (context.editor.language) {
+      parts.push(`   语言：${context.editor.language}`);
+    }
+    parts.push(`   行数：${context.editor.lineCount} 行`);
+    if (context.editor.uri) {
+      parts.push(`   路径：${context.editor.uri}`);
+    }
+    if (context.editor.selectedText) {
+      parts.push(`   选中文本：${context.editor.selectedText.substring(0, 100)}${context.editor.selectedText.length > 100 ? '...' : ''}`);
+    }
+  }
+
+  if (context.project) {
+    if (context.project.currentFile) {
+      parts.push(`📁 当前项目文件：${context.project.currentFile}`);
+    }
+    if (context.project.recentFiles && context.project.recentFiles.length > 0) {
+      parts.push(`📋 最近文件（${context.project.recentFiles.length} 个）：`);
+      context.project.recentFiles.slice(0, 5).forEach((file, index) => {
+        parts.push(`   ${index + 1}. ${file}`);
+      });
+      if (context.project.recentFiles.length > 5) {
+        parts.push(`   ... 还有 ${context.project.recentFiles.length - 5} 个文件`);
+      }
+    }
+  }
+
+  if (parts.length === 0) {
+    return "当前工作区上下文：暂无可用信息";
+  }
+
+  return parts.join("\n");
+}
+
 export const getWorkspaceContextTool = tool({
   description: "获取当前浏览器标签页、编辑器和项目相关的上下文信息，用于更好地理解用户问题。",
   inputSchema: workspaceContextParams,
-  execute: async ({ includeBrowserTab = true, includeEditor = true, includeProject = false }: z.infer<typeof workspaceContextParams>): Promise<AIContext> => {
+  execute: async ({ includeBrowserTab = true, includeEditor = true, includeProject = false }: z.infer<typeof workspaceContextParams>): Promise<string> => {
     const startTime = Date.now();
     console.log("[get_workspace_context] Called with:", { includeBrowserTab, includeEditor, includeProject });
 
-    // Fallback context to return in case of any failure
-    const fallbackContext: AIContext = {
-      timestamp: Date.now(),
-      editor: undefined,
-      browserTab: undefined,
-      project: undefined,
-    };
+    const fallbackMessage = "当前工作区上下文：获取失败，请稍后重试";
 
     try {
-      // Create a promise that rejects after a strict timeout
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => {
           reject(new Error(`Timeout after 5000ms`));
         }, 5000)
       );
 
-      // Wrap the service call to ensure it's a promise
       const contextPromise = Promise.resolve().then(() =>
         aiContextService.getFullContext({
           includeBrowserTab,
@@ -49,31 +87,22 @@ export const getWorkspaceContextTool = tool({
         })
       );
 
-      // Race against the timeout
       const context = await Promise.race([contextPromise, timeoutPromise]);
       const elapsed = Date.now() - startTime;
 
       if (!context || typeof context !== "object") {
         console.warn("[get_workspace_context] Invalid context returned, using fallback");
-        return fallbackContext;
+        return fallbackMessage;
       }
 
-      const result: AIContext = {
-        timestamp: context.timestamp || Date.now(),
-        editor: context.editor,
-        browserTab: context.browserTab,
-        project: context.project,
-      };
-
+      const result = formatWorkspaceContext(context);
       console.log(`[get_workspace_context] Successfully got context in ${elapsed}ms`);
       return result;
     } catch (error) {
       const elapsed = Date.now() - startTime;
       console.error(`[get_workspace_context] Error after ${elapsed}ms:`, error);
-
-      // Always return a valid object, never throw, to prevent the tool call from hanging the UI
-      console.log("[get_workspace_context] Returning fallback context due to error");
-      return fallbackContext;
+      console.log("[get_workspace_context] Returning fallback message due to error");
+      return fallbackMessage;
     }
   },
 });

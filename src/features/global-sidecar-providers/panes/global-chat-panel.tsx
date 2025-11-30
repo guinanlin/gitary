@@ -77,6 +77,72 @@ function extractTextFromUIMessage(message: UIMessage): string {
     .join("\n\n");
 }
 
+function convertUIMessageToAIMessage(message: UIMessage): Array<any> {
+  const messages: Array<any> = [];
+  let textContent = extractTextFromUIMessage(message);
+  
+  if (message.role === "assistant" && message.toolInvocations && message.toolInvocations.length > 0) {
+    const completedInvocations = message.toolInvocations.filter(
+      inv => inv.status === 'result' || inv.status === 'error'
+    );
+    
+    if (completedInvocations.length > 0) {
+      const toolResultsText: string[] = [];
+      
+      for (const inv of completedInvocations) {
+        if (inv.status === 'result' && inv.result !== undefined) {
+          let resultContent: string;
+          if (typeof inv.result === 'string') {
+            resultContent = inv.result;
+          } else if (inv.result && typeof inv.result === 'object') {
+            if ('kind' in inv.result && inv.result.kind === 'file') {
+              const fileResult = inv.result as any;
+              if (fileResult.content) {
+                resultContent = fileResult.content;
+              } else {
+                resultContent = JSON.stringify(inv.result, null, 2);
+              }
+            } else {
+              resultContent = JSON.stringify(inv.result, null, 2);
+            }
+          } else {
+            resultContent = String(inv.result);
+          }
+          
+          toolResultsText.push(`[工具 ${inv.toolName} 的结果]:\n${resultContent}`);
+        } else if (inv.status === 'error' && inv.error) {
+          toolResultsText.push(`[工具 ${inv.toolName} 错误]: ${inv.error}`);
+        }
+      }
+      
+      const combinedContent = textContent 
+        ? `${textContent}\n\n${toolResultsText.join('\n\n')}`
+        : toolResultsText.join('\n\n');
+      
+      messages.push({
+        role: "assistant" as const,
+        content: combinedContent,
+      });
+    } else {
+      if (textContent) {
+        messages.push({
+          role: "assistant" as const,
+          content: textContent,
+        });
+      }
+    }
+  } else {
+    if (textContent || message.role === "user") {
+      messages.push({
+        role: message.role,
+        content: textContent || "",
+      });
+    }
+  }
+  
+  return messages;
+}
+
 export const GlobalChatPanel = () => {
   const { t } = useTranslation();
   const { colorMode } = useColorMode();
@@ -169,14 +235,16 @@ export const GlobalChatPanel = () => {
         currentSpaceId ? [{ description: "current_space_id", value: currentSpaceId }] : []
       );
 
+      const MAX_HISTORY_MESSAGES = 10;
+      const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES);
+      
+      const historyMessages = recentMessages.flatMap(msg => convertUIMessageToAIMessage(msg));
+      
       const result = streamText({
         model,
         system: systemPrompt,
         messages: [
-          ...messages.map((msg) => ({
-            role: msg.role,
-            content: extractTextFromUIMessage(msg),
-          })),
+          ...historyMessages,
           { role: "user" as const, content: prompt },
         ],
         tools,

@@ -114,14 +114,14 @@ const ToolInvocationItem = ({ invocation }: ToolInvocationItemProps) => {
     if (!isFsTool || !invocation.result) return null;
 
     try {
-      let result = invocation.result;
+      let result: unknown = invocation.result;
       
       if (typeof result === "string") {
         result = JSON.parse(result);
       }
       
-      if (result && typeof result === "object" && result.kind) {
-        return result;
+      if (result && typeof result === "object" && result !== null && "kind" in result) {
+        return result as { kind: string; [key: string]: unknown };
       }
       
       return null;

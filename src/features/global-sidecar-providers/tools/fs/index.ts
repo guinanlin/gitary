@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { generateText } from 'ai';
 import {
   ProviderSource,
   isProbablyBinary,
@@ -10,6 +11,8 @@ import { FileType } from "@/toolkit/vscode/file-system";
 import { aiContextService } from "@/services/ai/context-service";
 import { folderTreeService } from "@/services/folder-tree.service";
 import { spaceService } from "@/services/space.service";
+import { getModelProvider, getModelName } from "@/services/ai/ai-sdk-config";
+import { aiProviderStore } from "@/services/ai/ai-provider.store";
 
 const reader = new ProviderSource();
 
@@ -326,6 +329,87 @@ export const fsStatTool = tool({
     } catch (error) {
       console.error(`[fs_stat] [${callId}] execute 错误:`, error);
       throw error;
+    }
+  },
+});
+
+export const fsAnalyzeFileTool = tool({
+  description: "分析文件内容，提供结构化的文档摘要和概括。注意：此工具需要文件内容作为输入，应该先使用 fs_readFile 读取文件内容，然后将内容传递给此工具进行分析。",
+  inputSchema: z.object({
+    content: z.string().describe(
+      "要分析的文件内容。此内容应该通过先调用 fs_readFile 工具获取。"
+    ),
+    path: z.string().optional().describe(
+      "文件路径（可选），用于在分析结果中显示文件位置。"
+    ),
+    truncated: z.boolean().optional().describe(
+      "文件内容是否被截断（可选）。如果为 true，会在分析结果中说明。"
+    ),
+  }),
+  execute: async ({ content, path, truncated }: {
+    content: string;
+    path?: string;
+    truncated?: boolean;
+  }): Promise<string> => {
+    const callId = `fs_analyzeFile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[fs_analyzeFile] [${callId}] execute 开始，path: ${path}, content长度: ${content.length}, truncated: ${truncated}`);
+
+    try {
+      if (!content || !content.trim()) {
+        return `文件内容为空，无法进行分析。${path ? `文件路径：${path}` : ""}`;
+      }
+
+      console.log(`[fs_analyzeFile] [${callId}] 开始调用 AI 分析内容，内容长度: ${content.length} 字符`);
+
+      const analyzeStartTime = Date.now();
+      
+      const currentProvider = aiProviderStore.getProvider();
+      const modelProvider = getModelProvider(currentProvider);
+      const modelName = getModelName(currentProvider);
+      const model = modelProvider.chat(modelName);
+
+      const systemPrompt = `你是一个专业的文档分析助手。你的任务是对文件内容进行简洁、准确的概括和分析。
+
+要求：
+1. 用中文回答
+2. 提供文档的主要内容和要点
+3. 如果文档有明确的结构（如章节、段落），简要说明结构
+4. 突出关键信息
+5. 保持简洁，控制在 300 字以内
+6. 如果内容被截断，请在分析末尾说明"（注：内容已截断，分析基于部分内容）"`;
+
+      const userPrompt = `请分析以下文件内容，提供简洁的概括和要点：
+
+${path ? `文件路径：${path}\n` : ""}${truncated ? "（注意：内容已截断）\n" : ""}
+
+文件内容：
+\`\`\`
+${content}
+\`\`\`
+
+请提供结构化的分析结果，包括：
+1. 文档主要内容
+2. 关键要点
+3. 文档结构（如果有）`;
+
+      const analysisResult = await generateText({
+        model,
+        system: systemPrompt,
+        prompt: userPrompt,
+      });
+
+      const analyzeElapsed = Date.now() - analyzeStartTime;
+      console.log(`[fs_analyzeFile] [${callId}] AI 分析完成，耗时: ${analyzeElapsed}ms`);
+
+      const fileInfo = path ? `📄 文件分析：${path}\n\n` : "📄 文件分析：\n\n";
+      const result = `${fileInfo}${analysisResult.text}${truncated ? "\n\n（注：文件内容已截断，分析基于部分内容）" : ""}`;
+
+      console.log(`[fs_analyzeFile] [${callId}] execute 完成，总耗时: ${analyzeElapsed}ms`);
+      return result;
+    } catch (error) {
+      console.error(`[fs_analyzeFile] [${callId}] execute 错误:`, error);
+      const errorMessage = error instanceof Error ? error.message : "未知错误";
+      return `分析文件时出错：${errorMessage}`;
     }
   },
 });
