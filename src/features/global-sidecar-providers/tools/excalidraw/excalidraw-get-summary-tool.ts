@@ -1,4 +1,5 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import { t } from "@/i18n/utils";
 import type {
   ExcalidrawSummaryNode,
@@ -13,24 +14,14 @@ import {
   distanceSq,
 } from "./utils";
 
-export const excalidrawAnalyzeTool: Tool<
-  { maxNodes?: number },
-  ExcalidrawSummaryResult
-> = {
-  name: "excalidraw_analyze",
+export const excalidrawAnalyzeTool = tool({
   description: t("excalidraw.tools.getSummaryDescription"),
-  parameters: {
-    type: "object",
-    properties: {
-      maxNodes: {
-        type: "number",
-        description: t("excalidraw.tools.getSummaryMaxNodesDescription"),
-      },
-    },
-    required: [],
-    additionalProperties: false,
-  },
-  async execute(args) {
+  inputSchema: z.object({
+    maxNodes: z.number().optional().describe(
+      t("excalidraw.tools.getSummaryMaxNodesDescription")
+    ),
+  }),
+  execute: async (args: { maxNodes?: number }): Promise<ExcalidrawSummaryResult> => {
     const { elements } = ensureExcalidrawAvailable();
     const maxNodes =
       typeof args?.maxNodes === "number" && args.maxNodes > 0
@@ -120,5 +111,6 @@ export const excalidrawAnalyzeTool: Tool<
       edges: limitedEdges,
     };
   },
-};
+});
+
 

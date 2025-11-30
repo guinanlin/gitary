@@ -1,3 +1,7 @@
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { ArrowUp, Square, Copy, Check } from "lucide-react";
+import { useColorMode } from "@chakra-ui/react";
 import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -9,35 +13,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { spaceHelper } from "@/helpers/space.helper";
-import { useStickyAutoScroll } from "@/hooks/use-sticky-autoscroll";
-import { agent } from "@/services/ai/ai-agent-runner";
-import { aiContextService } from "@/services/ai/context-service";
-import { aiProviderStore } from "@/services/ai/ai-provider.store";
-import type { AIProviderName } from "@/services/ai/providers";
 import { cn } from "@/toolkit/utils/shadcn-utils";
-import { layoutService } from "xbook/services";
-import {
-  useAgentChat,
-  useParseTools,
-  type Tool as AgentTool,
-  type UIMessage,
-} from "@agent-labs/agent-chat";
-import { useColorMode } from "@chakra-ui/react";
-import { ArrowUp, Check, Copy, Square } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useStickyAutoScroll } from "@/hooks/use-sticky-autoscroll";
 import { useObservable } from "@/features/search/hooks/useObservable";
-import { ToolInvocationList } from "../components/tool-invocation-list";
-import { GLOBAL_AGENT_TOOLS } from "../tools";
+import { aiProviderStore } from "@/services/ai/ai-provider.store";
+import { PROVIDER_CONFIGS, type AIProviderName } from "@/services/ai/providers";
+import { aiContextService } from "@/services/ai/context-service";
+import { spaceHelper } from "@/helpers/space.helper";
+import { ToolInvocationList } from "@/features/global-sidecar-providers/components/tool-invocation-list";
+import { getGitaryModel, getGitarySystemPrompt, getGitaryTools, MAX_TOOL_STEPS } from "@/services/ai/gitary-agent";
+import { streamText, stepCountIs } from "ai";
+
+interface UIMessage {
+  id: string;
+  role: "user" | "assistant";
+  parts?: Array<{
+    type: string;
+    text?: string;
+    toolInvocation?: any;
+    [key: string]: any;
+  }>;
+  toolInvocations?: Array<{
+    toolCallId: string;
+    toolName: string;
+    status: string;
+    args: unknown;
+    result?: unknown;
+    error?: string;
+  }>;
+}
+
+const PROVIDER_OPTIONS = Object.entries(PROVIDER_CONFIGS).map(([key, config]) => ({
+  value: key as AIProviderName,
+  label: config.defaultModel || key,
+}));
 
 const CopyButton = ({ content, isGenerating }: { content: string; isGenerating?: boolean }) => {
-  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
-
-  if (isGenerating) {
-    return null;
-  }
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -48,76 +60,45 @@ const CopyButton = ({ content, isGenerating }: { content: string; isGenerating?:
   return (
     <button
       onClick={handleCopy}
-      className="p-1.5 text-muted-foreground/60 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
-      title={t("globalChat.copyContent")}
+      disabled={isGenerating}
+      className="p-1.5 text-muted-foreground/60 hover:text-foreground transition-colors rounded-md hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+      title="复制内容"
     >
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
 };
 
-const PROVIDER_OPTIONS: { value: AIProviderName; label: string }[] = [
-  { value: "openai", label: "OpenAI" },
-  { value: "dashscope", label: "Dashscope (Qwen)" },
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "deepseek", label: "DeepSeek" },
-  { value: "kimi", label: "Kimi (Moonshot)" },
-  { value: "glm", label: "GLM (Zhipu)" },
-];
+function extractTextFromUIMessage(message: UIMessage): string {
+  if (!message.parts) return "";
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part: any) => part.text as string)
+    .join("\n\n");
+}
 
 export const GlobalChatPanel = () => {
   const { t } = useTranslation();
-  const [input, setInput] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { colorMode } = useColorMode();
-  const { containerRef, notifyNewItem, scrollToBottom } = useStickyAutoScroll();
+  const [input, setInput] = useState("");
   const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [isAgentResponding, setIsAgentResponding] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const currentProvider = useObservable(
     aiProviderStore.provider$,
     aiProviderStore.getProvider()
   );
 
-  // Global tools for the assistant; defined in a separate module for maintainability.
-  const agentTools: AgentTool[] = useMemo(
-    () => GLOBAL_AGENT_TOOLS as AgentTool[],
-    []
-  );
-  const { toolDefs, toolExecutors } = useParseTools(agentTools);
+  const { containerRef, notifyNewItem, scrollToBottom } = useStickyAutoScroll({ threshold: 80 });
 
-  const {
-    messages: uiMessages,
-    isAgentResponding,
-    sendMessage,
-    abortAgentRun,
-  } = useAgentChat({
-    agent,
-    toolDefs,
-    toolExecutors,
-    contexts: currentSpaceId
-      ? [
-        {
-          description: "current_space_id",
-          value: currentSpaceId,
-        },
-      ]
-      : [],
-    initialMessages: [],
-  });
-
-  const extractTextFromUIMessage = (message: UIMessage): string => {
-    const parts = message.parts || [];
-    return parts
-      .filter((part) => part.type === "text")
-      .map((part: any) => part.text as string)
-      .join("\n\n");
-  };
-
-  const messages = uiMessages;
   const lastAssistantId = useMemo(() => {
-    const reversed = [...uiMessages].reverse();
+    const reversed = [...messages].reverse();
     const last = reversed.find((m) => m.role === "assistant");
     return last?.id;
-  }, [uiMessages]);
+  }, [messages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +129,6 @@ export const GlobalChatPanel = () => {
 
     updateContext();
 
-    // 监听页面变化，就像原始项目一样
     const layoutService = (window as any).xbook?.layoutService;
     const pageBox = layoutService?.pageBox;
     const subscription = pageBox?.currentPage$?.subscribe(() => {
@@ -162,15 +142,378 @@ export const GlobalChatPanel = () => {
       subscription?.unsubscribe();
     };
   }, []);
+
   useEffect(() => {
     notifyNewItem();
   }, [messages, notifyNewItem]);
 
+  const sendMessage = useCallback(async (prompt: string) => {
+    if (!prompt.trim() || isAgentResponding) return;
+
+    const userMessage: UIMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      parts: [{ type: "text", text: prompt }],
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setIsAgentResponding(true);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const model = getGitaryModel();
+      const tools = getGitaryTools();
+      const systemPrompt = getGitarySystemPrompt(
+        currentSpaceId ? [{ description: "current_space_id", value: currentSpaceId }] : []
+      );
+
+      const result = streamText({
+        model,
+        system: systemPrompt,
+        messages: [
+          ...messages.map((msg) => ({
+            role: msg.role,
+            content: extractTextFromUIMessage(msg),
+          })),
+          { role: "user" as const, content: prompt },
+        ],
+        tools,
+        stopWhen: stepCountIs(MAX_TOOL_STEPS),
+        abortSignal: abortController.signal,
+      });
+
+      const assistantMessage: UIMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        parts: [],
+        toolInvocations: [],
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      const processedToolCallIds = new Set<string>();
+      let lastToolCheckTime = 0;
+      const TOOL_CHECK_INTERVAL = 100;
+
+      const getToolCallingMessage = (toolName: string, args: any): string => {
+        if (toolName === 'getWeather') {
+          const city = typeof args === 'object' && args?.city ? args.city : '指定城市';
+          return `正在调用工具为您查询${city}的天气信息，请稍候...`;
+        }
+        if (toolName === 'fs_readdir') {
+          const path = typeof args === 'object' && args?.path ? args.path : '当前目录';
+          return `正在调用工具查询${path}下的文件和目录，请稍候...`;
+        }
+        if (toolName === 'fs_readFile') {
+          const path = typeof args === 'object' && args?.path ? args.path : '文件';
+          return `正在调用工具读取${path}的内容，请稍候...`;
+        }
+        if (toolName === 'fs_stat') {
+          const path = typeof args === 'object' && args?.path ? args.path : '文件';
+          return `正在调用工具获取${path}的详细信息，请稍候...`;
+        }
+        if (toolName === 'get_workspace_context') {
+          return `正在调用工具获取当前工作空间上下文，请稍候...`;
+        }
+        return `正在调用工具处理您的请求，请稍候...`;
+      };
+
+      const updateToolInvocations = async () => {
+        try {
+          const currentToolCalls = await result.toolCalls;
+          const currentToolResults = await result.toolResults;
+          
+          if (currentToolCalls && currentToolCalls.length > 0) {
+            const toolResultsMap = new Map();
+            if (currentToolResults && currentToolResults.length > 0) {
+              for (const tr of currentToolResults) {
+                toolResultsMap.set(tr.toolCallId, tr);
+              }
+            }
+            
+            const newToolInvocations = currentToolCalls
+              .filter((tc) => !processedToolCallIds.has(tc.toolCallId))
+              .map((tc) => {
+                processedToolCallIds.add(tc.toolCallId);
+                const args = "args" in tc ? tc.args : ("input" in tc ? tc.input : {});
+                const toolResult = toolResultsMap.get(tc.toolCallId);
+                
+                let resultValue: any = undefined;
+                let errorValue: string | undefined = undefined;
+                let status: string = toolResult ? 'result' : 'call';
+                
+                if (toolResult) {
+                  if (toolResult.type === 'tool-error') {
+                    status = 'error';
+                    errorValue = String(toolResult.error || toolResult.result || toolResult.output || 'Unknown error');
+                  } else {
+                    status = 'result';
+                    resultValue = toolResult.output !== undefined ? toolResult.output : 
+                                 (toolResult.result !== undefined ? toolResult.result : 
+                                  (toolResult.value !== undefined ? toolResult.value : undefined));
+                  }
+                }
+                
+                return {
+                  toolCallId: tc.toolCallId,
+                  toolName: tc.toolName,
+                  status,
+                  args,
+                  result: resultValue,
+                  error: errorValue,
+                };
+              });
+            
+            if (newToolInvocations.length > 0) {
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant" && last.id === assistantMessage.id) {
+                  const existingInvocations = last.toolInvocations || [];
+                  const updatedInvocations = [...existingInvocations];
+                  let hasNewCall = false;
+                  
+                  for (const newInv of newToolInvocations) {
+                    const existingIdx = updatedInvocations.findIndex(
+                      (inv) => inv.toolCallId === newInv.toolCallId
+                    );
+                    if (existingIdx >= 0) {
+                      updatedInvocations[existingIdx] = newInv;
+                    } else {
+                      updatedInvocations.push(newInv);
+                      if (newInv.status === 'call') {
+                        hasNewCall = true;
+                      }
+                    }
+                  }
+                  
+                  let updatedMessage = { ...last, toolInvocations: updatedInvocations };
+                  
+                  if (hasNewCall) {
+                    const callingMessages = newToolInvocations
+                      .filter(inv => inv.status === 'call')
+                      .map(inv => getToolCallingMessage(inv.toolName, inv.args));
+                    
+                    if (callingMessages.length > 0) {
+                      const existingTextParts = updatedMessage.parts?.filter((p) => p.type === "text") || [];
+                      const existingText = existingTextParts[0]?.text || '';
+                      const newText = callingMessages.join('\n');
+                      
+                      if (!existingText || !existingText.includes('正在调用工具')) {
+                        const otherParts = updatedMessage.parts?.filter((p) => p.type !== "text") || [];
+                        updatedMessage.parts = [
+                          ...otherParts,
+                          { type: "text", text: existingText ? `${existingText}\n\n${newText}` : newText },
+                        ];
+                      }
+                    }
+                  }
+                  
+                  return [
+                    ...prev.slice(0, -1),
+                    updatedMessage,
+                  ];
+                }
+                return prev;
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[GlobalChatPanel] Error processing tool calls during streaming:', e);
+        }
+      };
+
+      for await (const chunk of result.textStream) {
+        if (abortController.signal.aborted) break;
+
+        let filteredChunk = chunk;
+        
+        filteredChunk = filteredChunk.replace(/<\|tool_call_end\|>/g, '');
+        filteredChunk = filteredChunk.replace(/<\|tool_calls_section_end\|>/g, '');
+        
+        if (filteredChunk.trim() && !/^[\s\n]*[{}[\]]+[\s\n]*$/.test(filteredChunk)) {
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && last.id === assistantMessage.id) {
+              const textParts = last.parts?.filter((p) => p.type === "text") || [];
+              const otherParts = last.parts?.filter((p) => p.type !== "text") || [];
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  parts: [
+                    ...otherParts,
+                    { type: "text", text: (textParts[0]?.text || "") + filteredChunk },
+                  ],
+                },
+              ];
+            }
+            return prev;
+          });
+        }
+
+        const now = Date.now();
+        if (now - lastToolCheckTime >= TOOL_CHECK_INTERVAL) {
+          lastToolCheckTime = now;
+          updateToolInvocations();
+        }
+      }
+
+      await updateToolInvocations();
+
+      const finalResult = await result;
+      const toolCalls = await finalResult.toolCalls;
+      const toolResults = await finalResult.toolResults;
+      let finalText = await finalResult.text;
+      
+      console.log('[GlobalChatPanel] Final result:', {
+        text: finalText,
+        toolCalls: toolCalls,
+        toolResults: toolResults,
+        steps: finalResult.steps,
+      });
+      
+      console.log('[GlobalChatPanel] Tool calls received:', toolCalls);
+      console.log('[GlobalChatPanel] Tool results received:', toolResults);
+      
+      if (toolCalls && toolCalls.length > 0 && finalText) {
+        const toolArgsSet = new Set<string>();
+        
+        for (const tc of toolCalls) {
+          const args = "args" in tc ? tc.args : ("input" in tc ? tc.input : {});
+          try {
+            const argsJson = typeof args === 'string' ? args : JSON.stringify(args);
+            toolArgsSet.add(argsJson);
+            toolArgsSet.add(argsJson.replace(/\s+/g, ''));
+            toolArgsSet.add(argsJson.replace(/\s+/g, ' '));
+            toolArgsSet.add(JSON.stringify(args, null, 2));
+          } catch (e) {
+            console.warn('[GlobalChatPanel] Failed to serialize args:', e);
+          }
+        }
+        
+        let cleanedText = finalText;
+        for (const argsJson of toolArgsSet) {
+          if (argsJson && cleanedText.includes(argsJson)) {
+            cleanedText = cleanedText.replace(new RegExp(argsJson.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').trim();
+          }
+        }
+        
+        cleanedText = cleanedText.replace(/<\|tool_call_end\|>/g, '').replace(/<\|tool_calls_section_end\|>/g, '').trim();
+        
+        if (cleanedText.trim() === '' || /^[\s\n]*[{}[\]]+[\s\n]*$/.test(cleanedText)) {
+          finalText = '';
+        } else {
+          finalText = cleanedText;
+        }
+      }
+      
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last.id === assistantMessage.id) {
+          let updatedMessage = { ...last };
+          
+          const existingTextParts = updatedMessage.parts?.filter((p) => p.type === "text") || [];
+          const existingText = existingTextParts[0]?.text || '';
+          
+          if (finalText && finalText.trim() && finalText !== existingText) {
+            const otherParts = updatedMessage.parts?.filter((p) => p.type !== "text") || [];
+            updatedMessage.parts = [
+              ...otherParts,
+              { type: "text", text: finalText.trim() },
+            ];
+          } else if (!finalText || !finalText.trim()) {
+            updatedMessage.parts = updatedMessage.parts?.filter((p) => p.type !== "text") || [];
+          }
+          
+          if (toolCalls && toolCalls.length > 0) {
+            console.log('[GlobalChatPanel] Processing', toolCalls.length, 'tool calls');
+            
+            const toolResultsMap = new Map();
+            if (toolResults && toolResults.length > 0) {
+              for (const tr of toolResults) {
+                toolResultsMap.set(tr.toolCallId, tr);
+              }
+            }
+            
+            const toolInvocations = toolCalls.map((tc) => {
+              const args = "args" in tc ? tc.args : ("input" in tc ? tc.input : {});
+              const toolResult = toolResultsMap.get(tc.toolCallId);
+              
+              console.log('[GlobalChatPanel] Tool call:', {
+                toolCallId: tc.toolCallId,
+                toolName: tc.toolName,
+                args,
+                hasResult: !!toolResult,
+                toolResultFull: toolResult,
+                toolResultType: toolResult?.type,
+                toolResultOutput: toolResult?.output,
+                toolResultKeys: toolResult ? Object.keys(toolResult) : [],
+              });
+              
+              let resultValue: any = undefined;
+              let errorValue: string | undefined = undefined;
+              let status: string = 'call';
+              
+              if (toolResult) {
+                if (toolResult.type === 'tool-error') {
+                  status = 'error';
+                  errorValue = String(toolResult.error || toolResult.result || toolResult.output || 'Unknown error');
+                } else {
+                  status = 'result';
+                  resultValue = toolResult.output !== undefined ? toolResult.output : 
+                               (toolResult.result !== undefined ? toolResult.result : 
+                                (toolResult.value !== undefined ? toolResult.value : 
+                                 (typeof toolResult === 'string' ? toolResult : 
+                                  (toolResult && typeof toolResult === 'object' && !toolResult.type ? toolResult : undefined))));
+                }
+              }
+              
+              return {
+                toolCallId: tc.toolCallId,
+                toolName: tc.toolName,
+                status,
+                args,
+                result: resultValue,
+                error: errorValue,
+              };
+            });
+
+            console.log('[GlobalChatPanel] Setting tool invocations:', toolInvocations);
+            updatedMessage.toolInvocations = toolInvocations;
+          }
+          
+          return [
+            ...prev.slice(0, -1),
+            updatedMessage,
+          ];
+        }
+        return prev;
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      console.error("Global AI assistant error:", error);
+    } finally {
+      setIsAgentResponding(false);
+      abortControllerRef.current = null;
+    }
+  }, [messages, currentSpaceId, isAgentResponding]);
+
+  const abortAgentRun = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsAgentResponding(false);
+    }
+  }, []);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const target = e.target;
-    target.style.height = '40px';
+    target.style.height = "40px";
     const newHeight = Math.min(Math.max(target.scrollHeight, 40), 200);
     target.style.height = `${newHeight}px`;
   };
@@ -184,7 +527,7 @@ export const GlobalChatPanel = () => {
     const prompt = input.trim();
     setInput("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = '40px';
+      textareaRef.current.style.height = "40px";
     }
     try {
       await sendMessage(prompt);
@@ -203,7 +546,10 @@ export const GlobalChatPanel = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth" ref={containerRef}>
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth"
+        ref={containerRef}
+      >
         <div className="max-w-3xl mx-auto w-full">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6 animate-in fade-in duration-500">
@@ -214,7 +560,8 @@ export const GlobalChatPanel = () => {
                 {t("globalChat.welcomeTitle") || "How can I help you today?"}
               </h3>
               <p className="text-base text-muted-foreground max-w-md leading-relaxed">
-                {t("globalChat.welcomeDesc") || "I'm your global AI assistant. Whether it's code problems, creative writing, or everyday chat, I'm happy to help."}
+                {t("globalChat.welcomeDesc") ||
+                  "I'm your global AI assistant. Whether it's code problems, creative writing, or everyday chat, I'm happy to help."}
               </p>
             </div>
           )}
@@ -228,7 +575,7 @@ export const GlobalChatPanel = () => {
                 const hasTools =
                   (msg.parts || []).some(
                     (part) => (part as any).type === "tool-invocation"
-                  );
+                  ) || (msg.toolInvocations && msg.toolInvocations.length > 0);
                 const isLastAssistant =
                   isAssistant && msg.id === lastAssistantId;
                 const showTyping =
@@ -297,7 +644,7 @@ export const GlobalChatPanel = () => {
               onKeyDown={handleKeyDown}
               placeholder={t("globalChat.placeholder") || "输入消息..."}
               className="flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2.5 text-[15px] placeholder:text-muted-foreground/50 overflow-y-auto"
-              style={{ height: '40px', minHeight: '40px', maxHeight: '200px' }}
+              style={{ height: "40px", minHeight: "40px", maxHeight: "200px" }}
               rows={1}
             />
             <Button
@@ -330,14 +677,19 @@ export const GlobalChatPanel = () => {
               </SelectTrigger>
               <SelectContent className="z-[100] min-w-[130px]">
                 {PROVIDER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={String(option.value)} className="text-[11px] py-1.5 h-7">
+                  <SelectItem
+                    key={option.value}
+                    value={String(option.value)}
+                    className="text-[11px] py-1.5 h-7"
+                  >
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground/40 font-medium tracking-wide uppercase flex-1 text-right">
-              {t("globalChat.disclaimer") || "AI can make mistakes. Check important info."}
+              {t("globalChat.disclaimer") ||
+                "AI can make mistakes. Check important info."}
             </p>
           </div>
         </div>

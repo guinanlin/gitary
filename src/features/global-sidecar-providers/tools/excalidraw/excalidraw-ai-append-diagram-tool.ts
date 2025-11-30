@@ -1,26 +1,17 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import { t } from "@/i18n/utils";
 import { excalidrawAIService } from "@/services/ai/excalidraw-ai.service";
 import { ensureExcalidrawAvailable } from "./utils";
 
-export const excalidrawAIAppendDiagramTool: Tool<
-  { prompt: string },
-  { insertedCount: number }
-> = {
-  name: "excalidraw_ai_append_diagram",
+export const excalidrawAIAppendDiagramTool = tool({
   description: t("excalidraw.tools.aiAppendDiagramDescription"),
-  parameters: {
-    type: "object",
-    properties: {
-      prompt: {
-        type: "string",
-        description: t("excalidraw.tools.aiAppendDiagramPromptDescription"),
-      },
-    },
-    required: ["prompt"],
-    additionalProperties: false,
-  },
-  async execute(args) {
+  inputSchema: z.object({
+    prompt: z.string().describe(
+      t("excalidraw.tools.aiAppendDiagramPromptDescription")
+    ),
+  }),
+  execute: async (args: { prompt: string }): Promise<{ insertedCount: number }> => {
     const { handle, elements: currentElements } = ensureExcalidrawAvailable();
     const prompt = (args?.prompt ?? "").trim();
 
@@ -37,5 +28,6 @@ export const excalidrawAIAppendDiagramTool: Tool<
       insertedCount: newElements.length,
     };
   },
-};
+});
+
 

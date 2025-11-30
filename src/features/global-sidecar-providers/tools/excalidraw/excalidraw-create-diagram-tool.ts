@@ -1,35 +1,20 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import { t } from "@/i18n/utils";
 import { ensureExcalidrawAvailable } from "./utils";
 import { validateAndCompleteElements } from "./element-validator";
 
-export const excalidrawCreateDiagramTool: Tool<
-  { elements: unknown[]; mode?: "append" | "replace" },
-  { insertedCount: number; mode: "append" | "replace" }
-> = {
-  name: "excalidraw_create_diagram",
+export const excalidrawCreateDiagramTool = tool({
   description: t("excalidraw.tools.createDiagramDescription"),
-  parameters: {
-    type: "object",
-    properties: {
-      elements: {
-        type: "array",
-        description: t("excalidraw.tools.createDiagramElementsDescription"),
-        items: {
-          type: "object",
-        },
-      },
-      mode: {
-        type: "string",
-        enum: ["append", "replace"],
-        description: t("excalidraw.tools.createDiagramModeDescription"),
-        default: "append",
-      },
-    },
-    required: ["elements"],
-    additionalProperties: false,
-  },
-  async execute(args) {
+  inputSchema: z.object({
+    elements: z.array(z.any()).describe(
+      t("excalidraw.tools.createDiagramElementsDescription")
+    ),
+    mode: z.enum(["append", "replace"]).optional().default("append").describe(
+      t("excalidraw.tools.createDiagramModeDescription")
+    ),
+  }),
+  execute: async (args: { elements: unknown[]; mode?: "append" | "replace" }): Promise<{ insertedCount: number; mode: "append" | "replace" }> => {
     const { handle, elements: currentElements } = ensureExcalidrawAvailable();
     const elements = args?.elements ?? [];
     const mode: "append" | "replace" =
@@ -52,5 +37,6 @@ export const excalidrawCreateDiagramTool: Tool<
       mode,
     };
   },
-};
+});
+
 

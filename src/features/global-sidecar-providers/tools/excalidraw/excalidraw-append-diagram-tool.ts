@@ -1,29 +1,17 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import { t } from "@/i18n/utils";
 import { ensureExcalidrawAvailable } from "./utils";
 import { validateAndCompleteElements } from "./element-validator";
 
-export const excalidrawAppendDiagramTool: Tool<
-  { elements: unknown[] },
-  { insertedCount: number }
-> = {
-  name: "excalidraw_append_diagram",
+export const excalidrawAppendDiagramTool = tool({
   description: t("excalidraw.tools.appendDiagramDescription"),
-  parameters: {
-    type: "object",
-    properties: {
-      elements: {
-        type: "array",
-        description: t("excalidraw.tools.appendDiagramElementsDescription"),
-        items: {
-          type: "object",
-        },
-      },
-    },
-    required: ["elements"],
-    additionalProperties: false,
-  },
-  async execute(args) {
+  inputSchema: z.object({
+    elements: z.array(z.any()).describe(
+      t("excalidraw.tools.appendDiagramElementsDescription")
+    ),
+  }),
+  execute: async (args: { elements: unknown[] }): Promise<{ insertedCount: number }> => {
     const { handle, elements: currentElements } = ensureExcalidrawAvailable();
     const elements = args?.elements ?? [];
 
@@ -40,5 +28,6 @@ export const excalidrawAppendDiagramTool: Tool<
       insertedCount: validatedElements.length,
     };
   },
-};
+});
+
 

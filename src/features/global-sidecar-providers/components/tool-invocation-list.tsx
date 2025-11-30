@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown, Loader2 } from "lucide-react";
-import type { UIMessage } from "@agent-labs/agent-chat";
+import { WeatherCard } from "./weather-card";
+import { FsResultCard } from "./fs-result-card";
 
 interface ToolInvocationListProps {
-  message: UIMessage;
+  message: {
+    toolInvocations?: Array<{
+      toolCallId: string;
+      toolName: string;
+      status: string;
+      args: unknown;
+      result?: unknown;
+      error?: string;
+    }>;
+  };
 }
 
 /**
@@ -12,26 +22,15 @@ interface ToolInvocationListProps {
  * - Limits height with scroll so large args/results不会撑爆布局。
  */
 export const ToolInvocationList = ({ message }: ToolInvocationListProps) => {
-  const parts = message.parts || [];
-  const toolParts = parts.filter((part) => part.type === "tool-invocation") as {
-    type: "tool-invocation";
-    toolInvocation: {
-      toolCallId: string;
-      toolName: string;
-      status: string;
-      args: unknown;
-      result?: unknown;
-      error?: string;
-    };
-  }[];
+  const toolInvocations = message.toolInvocations || [];
 
-  if (!toolParts.length) return null;
+  if (!toolInvocations.length) return null;
 
   return (
     <div className="mt-2 space-y-2">
-      {toolParts.map((part, idx) => {
+      {toolInvocations.map((invocation, idx) => {
         return (
-          <ToolInvocationItem key={idx} invocation={part.toolInvocation} />
+          <ToolInvocationItem key={invocation.toolCallId || idx} invocation={invocation} />
         );
       })}
     </div>
@@ -55,6 +54,11 @@ const ToolInvocationItem = ({ invocation }: ToolInvocationItemProps) => {
   const isPending =
     invocation.status === "call" || invocation.status === "partial-call";
   const isError = invocation.status === "error";
+  const isWeatherTool = invocation.toolName === "getWeather" && invocation.status === "result";
+  const isFsTool = (invocation.toolName === "fs_readdir" || 
+                    invocation.toolName === "fs_readFile" || 
+                    invocation.toolName === "fs_stat") && 
+                    invocation.status === "result";
 
   const argsPreview =
     typeof invocation.args === "string"
@@ -74,54 +78,124 @@ const ToolInvocationItem = ({ invocation }: ToolInvocationItemProps) => {
         : JSON.stringify(invocation.result, null, 2)
       : undefined;
 
-  return (
-    <div className="rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1 font-semibold text-[11px] uppercase tracking-wide">
-          <span>
-            Tool: {invocation.toolName}{" "}
-            <span className="ml-1 text-[10px] font-normal opacity-70">
-              ({invocation.status})
-            </span>
-          </span>
-          {isPending && (
-            <Loader2 className="h-3 w-3 text-amber-500 animate-spin" />
-          )}
-          {isError && (
-            <span className="ml-1 text-[11px] text-red-500">错误</span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded-sm"
-          aria-label={expanded ? "收起工具详情" : "展开工具详情"}
-        >
-          {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
-        </button>
-      </div>
+  const parseWeatherResult = () => {
+    if (!isWeatherTool || !resultText) return null;
 
-      {expanded && (
-        <div className="space-y-1 mt-1">
-          <div className="text-[11px] font-mono opacity-80">
-            <span className="font-semibold">args:</span>{" "}
-            <span className="break-all whitespace-pre-wrap">
-              {argsPreview}
+    try {
+      const args = typeof invocation.args === "object" && invocation.args !== null
+        ? invocation.args as { city?: string; unit?: "C" | "F" }
+        : {};
+      
+      const city = args.city || "";
+      const unit = args.unit || "C";
+
+      const match = resultText.match(/(.+?)当前天气[：:](.+?)，温度\s*(\d+)/);
+      if (match) {
+        const [, resultCity, description, tempStr] = match;
+        const temperature = parseInt(tempStr, 10);
+        return {
+          city: resultCity.trim() || city,
+          description: description.trim(),
+          temperature,
+          unit,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      console.warn("[WeatherCard] Failed to parse weather result:", e);
+      return null;
+    }
+  };
+
+  const weatherData = parseWeatherResult();
+
+  const parseFsResult = () => {
+    if (!isFsTool || !invocation.result) return null;
+
+    try {
+      let result = invocation.result;
+      
+      if (typeof result === "string") {
+        result = JSON.parse(result);
+      }
+      
+      if (result && typeof result === "object" && result.kind) {
+        return result;
+      }
+      
+      return null;
+    } catch (e) {
+      console.warn("[FsResultCard] Failed to parse FS result:", e);
+      return null;
+    }
+  };
+
+  const fsResult = parseFsResult();
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1 font-semibold text-[11px] uppercase tracking-wide">
+            <span>
+              Tool: {invocation.toolName}{" "}
+              <span className="ml-1 text-[10px] font-normal opacity-70">
+                ({invocation.status})
+              </span>
             </span>
+            {isPending && (
+              <Loader2 className="h-3 w-3 text-amber-500 animate-spin" />
+            )}
+            {isError && (
+              <span className="ml-1 text-[11px] text-red-500">错误</span>
+            )}
           </div>
-          {hasResult && resultText && (
-            <div className="text-[11px] font-mono opacity-80 max-h-40 overflow-y-auto overflow-x-auto pr-1">
-              <span className="font-semibold">result:</span>{" "}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-muted-foreground hover:text-foreground px-1 py-0.5 rounded-sm"
+            aria-label={expanded ? "收起工具详情" : "展开工具详情"}
+          >
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+
+        {expanded && (
+          <div className="space-y-1 mt-1">
+            <div className="text-[11px] font-mono opacity-80">
+              <span className="font-semibold">args:</span>{" "}
               <span className="break-all whitespace-pre-wrap">
-                {resultText}
+                {argsPreview}
               </span>
             </div>
-          )}
-        </div>
+            {hasResult && resultText && !isWeatherTool && !isFsTool && (
+              <div className="text-[11px] font-mono opacity-80 max-h-40 overflow-y-auto overflow-x-auto pr-1">
+                <span className="font-semibold">result:</span>{" "}
+                <span className="break-all whitespace-pre-wrap">
+                  {resultText}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isWeatherTool && weatherData && (
+        <WeatherCard
+          city={weatherData.city}
+          description={weatherData.description}
+          temperature={weatherData.temperature}
+          unit={weatherData.unit}
+        />
+      )}
+
+      {isFsTool && fsResult && (
+        <FsResultCard result={fsResult} />
       )}
     </div>
   );

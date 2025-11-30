@@ -33,64 +33,85 @@ AI Assistant 采用跨层架构设计：
 ┌─────────────────────────────────────────┐
 │       服务层 (Service Layer)             │
 │  - services/ai/                         │  ← 核心服务层
-│    ├── gateway.ts (AI网关服务)          │
-│    ├── providers.ts (多提供商支持)       │
-│    ├── ai-agent-runner.ts (Agent运行器) │
+│    ├── ai-sdk-config.ts (AI SDK配置)    │
+│    ├── gitary-agent.ts (Agent实现)      │
+│    ├── providers.ts (提供商配置)         │
 │    ├── ai-tool-registry.ts (工具注册表)  │
 │    ├── context-service.ts (上下文服务)   │
+│    ├── ai-service.ts (通用AI服务)       │
+│    ├── excalidraw-ai.service.ts (Excalidraw AI) │
 │    └── types.ts (类型定义)               │
 └─────────────────────────────────────────┘
 ```
 
 ## 二、核心组件详解
 
-### 2.1 AIGatewayService (AI 网关服务)
+### 2.1 AI SDK 配置 (AI SDK Configuration)
 
-**文件位置**：`src/services/ai/gateway.ts`
+**文件位置**：`src/services/ai/ai-sdk-config.ts`
 
-**职责**：统一的 AI 网关，封装与 AI 提供商的通信，提供统一的接口。
+**职责**：配置 Vercel AI SDK，支持多个兼容 OpenAI 的端点。
 
 **核心功能**：
 
 1. **提供商管理**
    - 支持多个 AI 提供商（OpenAI、Dashscope、OpenRouter、DeepSeek、Kimi、GLM）
-   - 提供商缓存机制，避免重复创建实例
-   - 动态提供商解析和切换
+   - 使用 `@ai-sdk/openai` 的 `createOpenAI` 创建兼容客户端
+   - 提供商客户端缓存机制，避免重复创建实例
+   - 支持自定义 fetch（处理 gitcode.com 等特殊端点）
 
-2. **消息处理**
-   - 统一的消息格式转换
-   - 支持工具调用（Function Calling）
-   - 流式和非流式响应
-
-3. **核心方法**：
+2. **核心函数**：
 
 ```typescript
-// 非流式聊天
-async chat(req: Partial<AIGatewayRequest>): Promise<AIGatewayResponse>
+// 获取配置好的模型提供商客户端
+export function getModelProvider(provider: AIProviderName): ReturnType<typeof createOpenAI>
 
-// 流式聊天（带回调）
-async chatStream(
-  req: Partial<AIGatewayRequest>,
-  onChunk: (chunk: string) => void
-): Promise<AIGatewayResponse>
-
-// 流式聊天（返回原始 chunk 流，用于 Agent 编排）
-async chatStreamChunks(
-  req: Partial<AIGatewayRequest>
-): Promise<AsyncIterable<OpenAIChatChunk>>
+// 获取默认模型名称
+export function getModelName(provider: AIProviderName): string
 ```
 
 **设计特点**：
-- ✅ 统一接口：屏蔽不同提供商的差异
+- ✅ 兼容 OpenAI 端点：继续使用现有的兼容 OpenAI 端点（如 gitcode.com）
 - ✅ 提供商缓存：提高性能，减少实例创建开销
-- ✅ 模型解析：支持 `provider/model` 格式的模型名称
-- ✅ 流式支持：完整的流式响应处理
+- ✅ 环境变量支持：从 PROVIDER_CONFIGS 读取配置
+- ✅ 自定义 fetch：处理特殊端点的请求头过滤
 
-### 2.2 AIProvider (AI 提供商实现)
+### 2.2 GitaryAgent (AI Agent 实现)
+
+**文件位置**：`src/services/ai/gitary-agent.ts`
+
+**职责**：使用 Vercel AI SDK 的 `Experimental_Agent` 类实现 AI Agent。
+
+**核心功能**：
+
+1. **Agent 创建**
+   - 使用 `createGitaryAgent` 函数创建 Agent 实例
+   - 从 `aiProviderStore` 获取当前提供商
+   - 注入上下文信息（如当前空间 ID）
+
+2. **工具集成**
+   - 集成所有全局工具（文件系统、工作空间上下文、Excalidraw 等）
+   - 工具以对象形式传递给 Agent，键为工具名称
+
+3. **核心函数**：
+
+```typescript
+export function createGitaryAgent(
+  contexts?: Array<{ description: string; value: string }>
+): Agent
+```
+
+**设计特点**：
+- ✅ 使用 AI SDK Agent：利用 Vercel AI SDK 的 Agent 类
+- ✅ 工具集成：所有工具统一管理
+- ✅ 上下文注入：通过 system prompt 注入上下文
+- ✅ 多步骤支持：支持多步骤工具调用（maxSteps: 20）
+
+### 2.3 Provider 配置 (Provider Configuration)
 
 **文件位置**：`src/services/ai/providers.ts`
 
-**职责**：实现具体的 AI 提供商接口，封装与各 AI 平台的通信。
+**职责**：定义提供商配置，包含 baseUrl、apiKey 和 defaultModel。
 
 **支持的提供商**：
 
@@ -131,7 +152,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 
 **文件位置**：`src/services/ai/ai-agent-runner.ts`
 
-**职责**：桥接 `@agent-labs/agent-chat` 框架与现有的 AI 服务，实现 `IAgent` 接口。
+**职责**：使用 Vercel AI SDK 的 Agent 类实现 AI Agent，集成工具和上下文。
 
 **核心功能**：
 
@@ -141,7 +162,7 @@ export class OpenAICompatibleProvider implements AIProvider {
    - 添加系统提示词和上下文
 
 2. **流式处理**
-   - 使用 `@agent-labs/agent-toolkit` 将 OpenAI chunk 流转换为 `AgentEvent` 流
+   - 使用 AI SDK 的 Agent 类处理工具调用和流式响应
    - 处理工具调用的增量参数
    - 管理工具调用的生命周期事件
 
@@ -172,7 +193,7 @@ class AIGatewayAgent implements IAgent {
 ```
 
 **设计特点**：
-- ✅ 框架集成：无缝集成 `@agent-labs/agent-chat` 框架
+- ✅ AI SDK 集成：使用 Vercel AI SDK 的 Agent 类
 - ✅ 事件流处理：完整的 AgentEvent 流处理
 - ✅ 工具调用管理：跟踪和管理工具调用状态
 - ✅ 错误恢复：完善的错误处理和恢复机制
@@ -588,7 +609,7 @@ UI 更新
 **UIMessage → AIMessage**：
 
 ```typescript
-// UIMessage (来自 @agent-labs/agent-chat)
+// 消息格式（AI SDK Agent 返回）
 {
   id: string;
   role: "user" | "assistant";
@@ -664,18 +685,25 @@ AI Assistant 作为全局侧边栏面板，具有以下特性：
 
 ### 7.1 核心依赖
 
-- **@agent-labs/agent-chat**：Agent 聊天框架，提供 `useAgentChat` Hook 和 `IAgent` 接口
-  - **来源**：外部 npm 包，开源项目
-  - **GitHub**：https://github.com/agent-labs/agent-chat
-  - **描述**：React 组件库，用于构建 AI agent 聊天界面
-  - **许可证**：MIT
-  - **维护者**：peiiii
-  - **版本**：^1.21.0
-- **@agent-labs/agent-toolkit**：Agent 工具包，提供 OpenAI chunk 到 AgentEvent 的转换
-  - **来源**：外部 npm 包，开源项目
-  - **描述**：纯逻辑工具包，用于 agent 流式处理、工具编排和参数累积
-  - **许可证**：MIT
-  - **维护者**：peiiii
+- **ai** (Vercel AI SDK)：Vercel 的 AI SDK，提供统一的 AI 应用开发接口
+  - **来源**：Vercel 官方 npm 包
+  - **文档**：https://ai-sdk.dev
+  - **描述**：TypeScript SDK，用于构建 AI 应用，支持多种 AI 模型提供商
+  - **许可证**：Apache 2.0
+  - **版本**：^5.0.0
+  - **核心功能**：
+    - `Experimental_Agent`：Agent 类，支持多步骤工具调用
+    - `generateText`：文本生成
+    - `streamText`：流式文本生成
+    - `tool()`：工具定义函数
+- **@ai-sdk/openai**：OpenAI 提供商适配器
+  - **来源**：Vercel AI SDK 官方包
+  - **描述**：提供 OpenAI 兼容的模型客户端，支持自定义 baseURL
+  - **版本**：^2.0.0
+- **zod**：TypeScript 模式验证库
+  - **来源**：外部 npm 包
+  - **描述**：用于定义工具参数的模式验证
+  - **版本**：^4.1.0
   - **版本**：^0.1.3
 - **openai**：OpenAI SDK，用于与 OpenAI 兼容的 API 通信
 - **rxjs**：响应式编程，用于状态管理和事件流处理

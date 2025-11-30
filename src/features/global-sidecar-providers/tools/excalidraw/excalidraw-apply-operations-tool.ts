@@ -1,4 +1,5 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import { t } from "@/i18n/utils";
 import type {
   ExcalidrawOperation,
@@ -13,68 +14,44 @@ import {
   createArrowBetween,
 } from "./utils";
 
-export const excalidrawModifyTool: Tool<
-  { operations: ExcalidrawOperation[] },
-  ApplyOperationsResult
-> = {
-  name: "excalidraw_modify",
+const ExcalidrawOperationSchema = z.object({
+  op: z.enum(["add_node", "connect", "rename_node", "delete_node"]).describe(
+    t("excalidraw.tools.applyOperationsOpDescription")
+  ),
+  id: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsIdDescription")
+  ),
+  label: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsLabelDescription")
+  ),
+  kind: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsKindDescription")
+  ),
+  near: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsNearDescription")
+  ),
+  from: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsFromDescription")
+  ),
+  to: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsToDescription")
+  ),
+  target: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsTargetDescription")
+  ),
+  newLabel: z.string().optional().describe(
+    t("excalidraw.tools.applyOperationsNewLabelDescription")
+  ),
+});
+
+export const excalidrawModifyTool = tool({
   description: t("excalidraw.tools.applyOperationsDescription"),
-  parameters: {
-    type: "object",
-    properties: {
-      operations: {
-        type: "array",
-        description: t("excalidraw.tools.applyOperationsOperationsDescription"),
-        items: {
-          type: "object",
-          properties: {
-            op: {
-              type: "string",
-              enum: ["add_node", "connect", "rename_node", "delete_node"],
-              description: t("excalidraw.tools.applyOperationsOpDescription"),
-            },
-            id: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsIdDescription"),
-            },
-            label: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsLabelDescription"),
-            },
-            kind: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsKindDescription"),
-            },
-            near: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsNearDescription"),
-            },
-            from: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsFromDescription"),
-            },
-            to: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsToDescription"),
-            },
-            target: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsTargetDescription"),
-            },
-            newLabel: {
-              type: "string",
-              description: t("excalidraw.tools.applyOperationsNewLabelDescription"),
-            },
-          },
-          required: ["op"],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["operations"],
-    additionalProperties: false,
-  },
-  async execute(args) {
+  inputSchema: z.object({
+    operations: z.array(ExcalidrawOperationSchema).describe(
+      t("excalidraw.tools.applyOperationsOperationsDescription")
+    ),
+  }),
+  execute: async (args: { operations: ExcalidrawOperation[] }): Promise<ApplyOperationsResult> => {
     const { handle, elements: initialElements } = ensureExcalidrawAvailable();
     const operations = args?.operations ?? [];
     if (!operations.length) {
@@ -231,5 +208,6 @@ export const excalidrawModifyTool: Tool<
       failed,
     };
   },
-};
+});
+
 

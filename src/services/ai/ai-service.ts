@@ -1,12 +1,11 @@
-import { aiGateway } from "@/services/ai/gateway";
+import { generateText } from 'ai';
+import { getModelProvider, getModelName } from './ai-sdk-config';
+import { aiProviderStore } from './ai-provider.store';
+import { PROVIDER_CONFIGS, type AIProviderName } from './providers';
 
 export class AIService {
   private model: string;
 
-  /**
-   * Legacy wrapper around the new AIGatewayService.
-   * Kept for existing components (AI Resume, AI Quotes, etc).
-   */
   constructor(model: string = "gpt-4o-mini") {
     this.model = model;
   }
@@ -15,17 +14,42 @@ export class AIService {
     messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
     responseFormat?: { type: string }
   ) {
-    const res = await aiGateway.chatStream({
-      model: this.model,
-      messages,
-      // responseFormat is not wired yet; kept for compatibility.
-    }, () => { });
+    const currentProvider = aiProviderStore.getProvider();
+    const modelProvider = getModelProvider(currentProvider);
+    const modelName = this.parseModelName(this.model, currentProvider);
+    const model = modelProvider.chat(modelName);
 
-    const msg = res.messages[0];
-    if (!msg) {
-      throw new Error("AI 网关未返回任何消息");
+    const systemMessages = messages.filter(m => m.role === 'system');
+    const userMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+    
+    const systemPrompt = systemMessages.map(m => m.content).join('\n\n');
+    const prompt = userMessages.map(m => m.content).join('\n\n');
+
+    const result = await generateText({
+      model,
+      system: systemPrompt || undefined,
+      prompt,
+      ...(responseFormat?.type === 'json_object' ? { responseFormat: { type: 'json_object' } } : {}),
+    });
+
+    return result.text;
+  }
+
+  private parseModelName(modelString: string, defaultProvider: AIProviderName): string {
+    const segments = modelString.split("/");
+    if (segments.length > 1) {
+      const providerCandidate = segments[0] as AIProviderName;
+      if (PROVIDER_CONFIGS[providerCandidate]) {
+        return segments.slice(1).join("/");
+      }
     }
-    return msg.content;
+    
+    const providerConfig = PROVIDER_CONFIGS[defaultProvider];
+    if (providerConfig && modelString === providerConfig.defaultModel) {
+      return modelString;
+    }
+    
+    return modelString;
   }
 
   async generateText(prompt: string) {

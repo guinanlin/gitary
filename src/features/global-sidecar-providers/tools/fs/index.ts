@@ -1,4 +1,5 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import {
   ProviderSource,
   isProbablyBinary,
@@ -39,17 +40,17 @@ type FsReadFileArgs = FsCommonArgs & {
 
 type FsFileResult =
   | {
-      kind: "file";
-      path: string;
-      content: string;
-      truncated: boolean;
-    }
+    kind: "file";
+    path: string;
+    content: string;
+    truncated: boolean;
+  }
   | {
-      kind: "binary";
-      path: string;
-      note: string;
-      size?: number;
-    };
+    kind: "binary";
+    path: string;
+    note: string;
+    size?: number;
+  };
 
 type FsDirResult = {
   kind: "directory";
@@ -126,48 +127,41 @@ function resolveTarget(args: FsCommonArgs): { spaceId: string; path: string } {
   return { spaceId, path: effectivePath };
 }
 
-export const fsReaddirTool: Tool<FsCommonArgs, FsDirResult> = {
-  name: "fs_readdir",
-  description:
-    "列出指定空间路径下的目录内容。对应 Node.js fs.readdir（只读）。",
-  parameters: {
-    type: "object",
-    properties: {
-      uri: {
-        type: "string",
-        description:
-          "完整空间 URI，例如 \"space://<spaceId>/path/to/dir\"。若提供，则可省略 spaceId 和 path。",
-      },
-      spaceId: {
-        type: "string",
-        description:
-          "空间 ID。若未提供 uri 时，必须提供 spaceId + path。",
-      },
-      path: {
-        type: "string",
-        description:
-          "空间内路径，例如 \"/\"、\"src\" 或 \"src/components\"。默认值为 \"/\"。",
-      },
-    },
-    required: [],
-    additionalProperties: false,
-  },
-  async execute(args: FsCommonArgs): Promise<FsDirResult> {
+export const fsReaddirTool = tool({
+  description: "列出指定空间路径下的目录内容。对应 Node.js fs.readdir（只读）。",
+  inputSchema: z.object({
+    uri: z.string().optional().describe(
+      "完整空间 URI，例如 \"space://<spaceId>/path/to/dir\"。若提供，则可省略 spaceId 和 path。"
+    ),
+    spaceId: z.string().optional().describe(
+      "空间 ID。若未提供 uri 时，必须提供 spaceId + path。"
+    ),
+    path: z.string().optional().describe(
+      "空间内路径，例如 \"/\"、\"src\" 或 \"src/components\"。默认值为 \"/\"。"
+    ),
+  }),
+  execute: async ({ uri, spaceId, path }: {
+    uri?: string;
+    spaceId?: string;
+    path?: string;
+  }): Promise<FsDirResult> => {
     const callId = `fs_readdir_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`[fs_readdir] [${callId}] execute 开始，args:`, JSON.stringify(args));
-    
+    console.log(`[fs_readdir] [${callId}] execute 开始，uri: ${uri}, spaceId: ${spaceId}, path: ${path}`);
+
     try {
-      const { spaceId, path } = resolveTarget(args);
-      console.log(`[fs_readdir] [${callId}] resolveTarget 成功: spaceId=${spaceId}, path=${path}`);
-      
+      const resolved = resolveTarget({ uri, spaceId, path });
+      const resolvedSpaceId = resolved.spaceId;
+      const resolvedPath = resolved.path;
+      console.log(`[fs_readdir] [${callId}] resolveTarget 成功: spaceId=${resolvedSpaceId}, path=${resolvedPath}`);
+
       const startTime = Date.now();
-      const entries = await reader.readDirectory(spaceId, path);
+      const entries = await reader.readDirectory(resolvedSpaceId, resolvedPath);
       const elapsed = Date.now() - startTime;
       console.log(`[fs_readdir] [${callId}] readDirectory 成功，条目数: ${entries.length}，耗时: ${elapsed}ms`);
-      
+
       const mapped = entries
         .map(([name, type]) => {
-          const fullPath = path === "/" ? name : `${path}/${name}`;
+          const fullPath = resolvedPath === "/" ? name : `${resolvedPath}/${name}`;
           if (shouldIgnorePath(fullPath)) return null;
           let kind: "file" | "directory" | "other" = "other";
           if (type === FileType.File) kind = "file";
@@ -175,16 +169,16 @@ export const fsReaddirTool: Tool<FsCommonArgs, FsDirResult> = {
           return { name, type: kind };
         })
         .filter(Boolean) as {
-        name: string;
-        type: "file" | "directory" | "other";
-      }[];
+          name: string;
+          type: "file" | "directory" | "other";
+        }[];
 
       const result = {
         kind: "directory" as const,
-        path,
+        path: resolvedPath,
         entries: mapped,
       };
-      
+
       console.log(`[fs_readdir] [${callId}] execute 完成，返回 ${mapped.length} 个条目`);
       return result;
     } catch (error) {
@@ -192,118 +186,146 @@ export const fsReaddirTool: Tool<FsCommonArgs, FsDirResult> = {
       throw error;
     }
   },
-};
+});
 
-export const fsReadFileTool: Tool<FsReadFileArgs, FsFileResult> = {
-  name: "fs_readFile",
-  description:
-    "读取指定空间中文件的文本内容。对应 Node.js fs.readFile（只读）。",
-  parameters: {
-    type: "object",
-    properties: {
-      uri: {
-        type: "string",
-        description:
-          "完整空间 URI，例如 \"space://<spaceId>/path/to/file.md\"。若提供，则可省略 spaceId 和 path。",
-      },
-      spaceId: {
-        type: "string",
-        description:
-          "空间 ID。若未提供 uri 时，必须提供 spaceId + path。",
-      },
-      path: {
-        type: "string",
-        description:
-          "空间内文件路径，例如 \"README.md\" 或 \"src/index.ts\"。",
-      },
-      maxBytes: {
-        type: "number",
-        description:
-          "读取文件时最多返回的字符数，默认约 8000 字符。避免返回过长内容。",
-      },
-    },
-    required: [],
-    additionalProperties: false,
-  },
-  async execute(args: FsReadFileArgs): Promise<FsFileResult> {
-    const { spaceId, path } = resolveTarget(args);
+export const fsReadFileTool = tool({
+  description: "读取指定空间中文件的文本内容。对应 Node.js fs.readFile（只读）。",
+  inputSchema: z.object({
+    uri: z.string().optional().describe(
+      "完整空间 URI，例如 \"space://<spaceId>/path/to/file.md\"。若提供，则可省略 spaceId 和 path。"
+    ),
+    spaceId: z.string().optional().describe(
+      "空间 ID。若未提供 uri 时，必须提供 spaceId + path。"
+    ),
+    path: z.string().optional().describe(
+      "空间内文件路径，例如 \"README.md\" 或 \"src/index.ts\"。"
+    ),
+    maxBytes: z.number().optional().describe(
+      "读取文件时最多返回的字符数，默认约 8000 字符。避免返回过长内容。"
+    ),
+  }),
+  execute: async ({ uri, spaceId, path, maxBytes }: {
+    uri?: string;
+    spaceId?: string;
+    path?: string;
+    maxBytes?: number;
+  }): Promise<FsFileResult> => {
+    const callId = `fs_readFile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[fs_readFile] [${callId}] execute 开始，uri: ${uri}, spaceId: ${spaceId}, path: ${path}, maxBytes: ${maxBytes}`);
 
-    if (!path || path === "/") {
-      throw new Error(
-        "fs_readFile 需要提供具体文件路径 path，而不是目录。"
-      );
-    }
+    try {
+      const resolved = resolveTarget({ uri, spaceId, path });
+      const resolvedSpaceId = resolved.spaceId;
+      const resolvedPath = resolved.path;
+      console.log(`[fs_readFile] [${callId}] resolveTarget 成功: spaceId=${resolvedSpaceId}, path=${resolvedPath}`);
 
-    if (isProbablyBinary(path)) {
-      const stat = reader.stat ? await reader.stat(spaceId, path) : {};
-      return {
-        kind: "binary",
-        path,
-        note: "目标看起来是二进制文件，跳过内容读取。",
-        size: stat?.size,
+      if (!resolvedPath || resolvedPath === "/") {
+        const error = new Error(
+          "fs_readFile 需要提供具体文件路径 path，而不是目录。"
+        );
+        console.error(`[fs_readFile] [${callId}] execute 错误:`, error);
+        throw error;
+      }
+
+      if (isProbablyBinary(resolvedPath)) {
+        console.log(`[fs_readFile] [${callId}] 检测到二进制文件: ${resolvedPath}`);
+        const stat = reader.stat ? await reader.stat(resolvedSpaceId, resolvedPath) : {};
+        const result = {
+          kind: "binary" as const,
+          path: resolvedPath,
+          note: "目标看起来是二进制文件，跳过内容读取。",
+          size: stat?.size,
+        };
+        console.log(`[fs_readFile] [${callId}] execute 完成，返回二进制文件信息`);
+        return result;
+      }
+
+      const startTime = Date.now();
+      const bytes = await reader.readFile(resolvedSpaceId, resolvedPath);
+      const elapsed = Date.now() - startTime;
+      console.log(`[fs_readFile] [${callId}] readFile 成功，文件大小: ${bytes.length} 字节，耗时: ${elapsed}ms`);
+
+      const text = new TextDecoder().decode(bytes);
+      const limit =
+        typeof maxBytes === "number" && maxBytes > 0
+          ? maxBytes
+          : 8_000;
+
+      let content = text;
+      let truncated = false;
+      if (text.length > limit) {
+        content = text.slice(0, limit);
+        truncated = true;
+        console.log(`[fs_readFile] [${callId}] 内容已截断: ${text.length} -> ${limit} 字符`);
+      }
+
+      const result = {
+        kind: "file" as const,
+        path: resolvedPath,
+        content,
+        truncated,
       };
+
+      console.log(`[fs_readFile] [${callId}] execute 完成，返回文件内容 (${content.length} 字符, truncated: ${truncated})`);
+      return result;
+    } catch (error) {
+      console.error(`[fs_readFile] [${callId}] execute 错误:`, error);
+      throw error;
     }
+  },
+});
 
-    const bytes = await reader.readFile(spaceId, path);
-    const text = new TextDecoder().decode(bytes);
-    const limit =
-      typeof args.maxBytes === "number" && args.maxBytes > 0
-        ? args.maxBytes
-        : 8_000;
+export const fsStatTool = tool({
+  description: "获取指定空间路径的文件或目录信息（size、mtime 等）。对应 Node.js fs.stat（只读）。",
+  inputSchema: z.object({
+    uri: z.string().optional().describe(
+      "完整空间 URI，例如 \"space://<spaceId>/path/to/target\"。若提供，则可省略 spaceId 和 path。"
+    ),
+    spaceId: z.string().optional().describe(
+      "空间 ID。若未提供 uri 时，必须提供 spaceId + path。"
+    ),
+    path: z.string().optional().describe(
+      "空间内路径，例如 \"README.md\" 或 \"src\"。默认值为 \"/\"。"
+    ),
+  }),
+  execute: async ({ uri, spaceId, path }: {
+    uri?: string;
+    spaceId?: string;
+    path?: string;
+  }): Promise<FsStatResult> => {
+    const callId = `fs_stat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[fs_stat] [${callId}] execute 开始，uri: ${uri}, spaceId: ${spaceId}, path: ${path}`);
 
-    let content = text;
-    let truncated = false;
-    if (text.length > limit) {
-      content = text.slice(0, limit);
-      truncated = true;
+    try {
+      const resolved = resolveTarget({ uri, spaceId, path });
+      const resolvedSpaceId = resolved.spaceId;
+      const resolvedPath = resolved.path;
+      console.log(`[fs_stat] [${callId}] resolveTarget 成功: spaceId=${resolvedSpaceId}, path=${resolvedPath}`);
+
+      if (!reader.stat) {
+        console.log(`[fs_stat] [${callId}] reader.stat 不可用，返回基本信息`);
+        const result = { kind: "stat" as const, path: resolvedPath };
+        console.log(`[fs_stat] [${callId}] execute 完成`);
+        return result;
+      }
+
+      const startTime = Date.now();
+      const s = await reader.stat(resolvedSpaceId, resolvedPath);
+      const elapsed = Date.now() - startTime;
+      console.log(`[fs_stat] [${callId}] stat 成功，耗时: ${elapsed}ms`);
+
+      const result = {
+        kind: "stat" as const,
+        path: resolvedPath,
+        size: s.size,
+        mtime: s.mtime,
+      };
+
+      console.log(`[fs_stat] [${callId}] execute 完成，size: ${s.size}, mtime: ${s.mtime}`);
+      return result;
+    } catch (error) {
+      console.error(`[fs_stat] [${callId}] execute 错误:`, error);
+      throw error;
     }
-
-    return {
-      kind: "file",
-      path,
-      content,
-      truncated,
-    };
   },
-};
-
-export const fsStatTool: Tool<FsCommonArgs, FsStatResult> = {
-  name: "fs_stat",
-  description:
-    "获取指定空间路径的文件或目录信息（size、mtime 等）。对应 Node.js fs.stat（只读）。",
-  parameters: {
-    type: "object",
-    properties: {
-      uri: {
-        type: "string",
-        description:
-          "完整空间 URI，例如 \"space://<spaceId>/path/to/target\"。若提供，则可省略 spaceId 和 path。",
-      },
-      spaceId: {
-        type: "string",
-        description:
-          "空间 ID。若未提供 uri 时，必须提供 spaceId + path。",
-      },
-      path: {
-        type: "string",
-        description:
-          "空间内路径，例如 \"README.md\" 或 \"src\"。默认值为 \"/\"。",
-      },
-    },
-    required: [],
-    additionalProperties: false,
-  },
-  async execute(args: FsCommonArgs): Promise<FsStatResult> {
-    const { spaceId, path } = resolveTarget(args);
-    if (!reader.stat) {
-      return { kind: "stat", path };
-    }
-    const s = await reader.stat(spaceId, path);
-    return {
-      kind: "stat",
-      path,
-      size: s.size,
-      mtime: s.mtime,
-    };
-  },
-};
+});

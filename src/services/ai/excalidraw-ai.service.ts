@@ -1,4 +1,6 @@
-import { aiGateway } from "@/services/ai/gateway";
+import { generateText } from 'ai';
+import { getModelProvider, getModelName } from './ai-sdk-config';
+import { aiProviderStore } from './ai-provider.store';
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import { validateAndCompleteElements } from "@/features/global-sidecar-providers/tools/excalidraw/element-validator";
 
@@ -70,15 +72,18 @@ export class ExcalidrawAIService {
 只返回 JSON 数组，不要包含任何其他文字。`;
 
     try {
-      const response = await aiGateway.chat({
-        model: "dashscope/qwen3-max",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+      const currentProvider = aiProviderStore.getProvider();
+      const modelProvider = getModelProvider(currentProvider);
+      const modelName = getModelName(currentProvider);
+      const model = modelProvider.chat(modelName);
+
+      const result = await generateText({
+        model,
+        system: systemPrompt,
+        prompt: userPrompt,
       });
 
-      const content = response.messages[0]?.content || "";
+      const content = result.text;
 
       if (!content.trim()) {
         throw new Error("AI 返回的内容为空");

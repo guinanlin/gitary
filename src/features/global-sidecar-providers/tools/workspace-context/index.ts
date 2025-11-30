@@ -1,45 +1,28 @@
-import type { Tool } from "@agent-labs/agent-chat";
+import { tool } from 'ai';
+import { z } from 'zod';
 import {
   aiContextService,
   type AIContext,
 } from "@/services/ai/context-service";
 
-/**
- * 获取当前工作区上下文（浏览器标签页、编辑器、项目文件等）。
- * 这是一个只读工具，用于给模型提供更丰富的环境信息。
- */
-export const getWorkspaceContextTool: Tool<
-  {
-    includeBrowserTab?: boolean;
-    includeEditor?: boolean;
-    includeProject?: boolean;
-  },
-  AIContext
-> = {
-  name: "get_workspace_context",
-  description:
-    "获取当前浏览器标签页、编辑器和项目相关的上下文信息，用于更好地理解用户问题。",
-  parameters: {
-    type: "object",
-    properties: {
-      includeBrowserTab: {
-        type: "boolean",
-        description: "是否包含当前浏览器标签页信息（URL、标题等）。",
-      },
-      includeEditor: {
-        type: "boolean",
-        description: "是否包含当前编辑器打开文件的内容和元信息。",
-      },
-      includeProject: {
-        type: "boolean",
-        description: "是否包含项目级别的上下文（当前文件、最近文件等）。",
-      },
-    },
-    additionalProperties: false,
-  },
-  async execute(args) {
+const workspaceContextParams = z.object({
+  includeBrowserTab: z.boolean().optional().describe(
+    "是否包含当前浏览器标签页信息（URL、标题等）。"
+  ),
+  includeEditor: z.boolean().optional().describe(
+    "是否包含当前编辑器打开文件的内容和元信息。"
+  ),
+  includeProject: z.boolean().optional().describe(
+    "是否包含项目级别的上下文（当前文件、最近文件等）。"
+  ),
+});
+
+export const getWorkspaceContextTool = tool({
+  description: "获取当前浏览器标签页、编辑器和项目相关的上下文信息，用于更好地理解用户问题。",
+  inputSchema: workspaceContextParams,
+  execute: async ({ includeBrowserTab = true, includeEditor = true, includeProject = false }: z.infer<typeof workspaceContextParams>): Promise<AIContext> => {
     const startTime = Date.now();
-    console.log("[get_workspace_context] Called with args:", JSON.stringify(args));
+    console.log("[get_workspace_context] Called with:", { includeBrowserTab, includeEditor, includeProject });
 
     // Fallback context to return in case of any failure
     const fallbackContext: AIContext = {
@@ -50,36 +33,6 @@ export const getWorkspaceContextTool: Tool<
     };
 
     try {
-      let normalizedArgs: {
-        includeBrowserTab?: boolean;
-        includeEditor?: boolean;
-        includeProject?: boolean;
-      } = {};
-
-      if (args && typeof args === "object") {
-        if ("includeBrowserTab" in args && typeof args.includeBrowserTab === "boolean") {
-          normalizedArgs.includeBrowserTab = args.includeBrowserTab;
-        }
-        if ("includeEditor" in args && typeof args.includeEditor === "boolean") {
-          normalizedArgs.includeEditor = args.includeEditor;
-        }
-        if ("includeProject" in args && typeof args.includeProject === "boolean") {
-          normalizedArgs.includeProject = args.includeProject;
-        }
-      }
-
-      const {
-        includeBrowserTab = true,
-        includeEditor = true,
-        includeProject = false,
-      } = normalizedArgs;
-
-      console.log("[get_workspace_context] Resolved options:", {
-        includeBrowserTab,
-        includeEditor,
-        includeProject,
-      });
-
       // Create a promise that rejects after a strict timeout
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => {
@@ -123,5 +76,4 @@ export const getWorkspaceContextTool: Tool<
       return fallbackContext;
     }
   },
-};
-
+});
