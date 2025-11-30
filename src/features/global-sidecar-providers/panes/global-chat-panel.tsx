@@ -23,6 +23,8 @@ import { spaceHelper } from "@/helpers/space.helper";
 import { ToolInvocationList } from "@/features/global-sidecar-providers/components/tool-invocation-list";
 import { getGitaryModel, getGitarySystemPrompt, getGitaryTools, MAX_TOOL_STEPS } from "@/services/ai/gitary-agent";
 import { streamText, stepCountIs } from "ai";
+import { chatCacheService } from "@/services/ai/chat-cache.service";
+import type { ChatMessage } from "@dty/ai-assistant-core";
 
 interface UIMessage {
   id: string;
@@ -148,10 +150,12 @@ export const GlobalChatPanel = () => {
   const { colorMode } = useColorMode();
   const [input, setInput] = useState("");
   const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string>("global");
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [isAgentResponding, setIsAgentResponding] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentProvider = useObservable(
     aiProviderStore.provider$,
@@ -165,6 +169,10 @@ export const GlobalChatPanel = () => {
     const last = reversed.find((m) => m.role === "assistant");
     return last?.id;
   }, [messages]);
+
+  const defaultConversationId = useMemo(() => {
+    return currentSpaceId ? `default-${currentSpaceId}` : "global";
+  }, [currentSpaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,15 +188,19 @@ export const GlobalChatPanel = () => {
           const spaceId = spaceHelper.getSpaceIdFromUri(uri);
           if (!cancelled) {
             setCurrentSpaceId(spaceId);
+            const newDefaultConversationId = spaceId ? `default-${spaceId}` : "global";
+            setConversationId(newDefaultConversationId);
           }
         } else {
           if (!cancelled) {
             setCurrentSpaceId(null);
+            setConversationId("global");
           }
         }
       } catch {
         if (!cancelled) {
           setCurrentSpaceId(null);
+          setConversationId("global");
         }
       }
     };
@@ -210,8 +222,35 @@ export const GlobalChatPanel = () => {
   }, []);
 
   useEffect(() => {
+    const cachedMessages = chatCacheService.getMessages(conversationId);
+    if (cachedMessages.length > 0) {
+      setMessages(cachedMessages as UIMessage[]);
+    } else {
+      setMessages([]);
+    }
+  }, [conversationId]);
+
+  useEffect(() => {
     notifyNewItem();
   }, [messages, notifyNewItem]);
+
+  useEffect(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    if (messages.length > 0) {
+      saveTimerRef.current = setTimeout(() => {
+        chatCacheService.setMessages(conversationId, messages as ChatMessage[], currentSpaceId);
+      }, 500);
+    }
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [messages, conversationId, currentSpaceId]);
 
   const sendMessage = useCallback(async (prompt: string) => {
     if (!prompt.trim() || isAgentResponding) return;

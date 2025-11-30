@@ -1,0 +1,43 @@
+{
+  "name": "@dty/ai-assistant-core",
+  "version": "1.0.0",
+  "description": "Core AI Assistant library with dependency injection support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "assistant",
+    "chat",
+    "agent",
+    "openai",
+    "llm"
+  ],
+  "author": "DTY",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "ai": "^5.0.0",
+    "@ai-sdk/openai": "^2.0.0",
+    "zod": "^4.1.0",
+    "rxjs": "^7.8.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+

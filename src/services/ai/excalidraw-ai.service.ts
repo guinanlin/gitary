@@ -1,6 +1,8 @@
 import { generateText } from 'ai';
-import { getModelProvider, getModelName } from './ai-sdk-config';
+import { getAIModel } from "@dty/ai-assistant-core";
+import type { ProviderConfigs } from "@dty/ai-assistant-core";
 import { aiProviderStore } from './ai-provider.store';
+import { PROVIDER_CONFIGS } from './providers';
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import { validateAndCompleteElements } from "@/features/global-sidecar-providers/tools/excalidraw/element-validator";
 
@@ -73,9 +75,7 @@ export class ExcalidrawAIService {
 
     try {
       const currentProvider = aiProviderStore.getProvider();
-      const modelProvider = getModelProvider(currentProvider);
-      const modelName = getModelName(currentProvider);
-      const model = modelProvider.chat(modelName);
+      const model = getAIModel(currentProvider, PROVIDER_CONFIGS as ProviderConfigs);
 
       const result = await generateText({
         model,

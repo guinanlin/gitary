@@ -1,64 +1,18 @@
-import { generateText } from 'ai';
-import { getModelProvider, getModelName } from './ai-sdk-config';
+import { AIService as CoreAIService, type AIProviderStore } from "@dty/ai-assistant-core";
 import { aiProviderStore } from './ai-provider.store';
-import { PROVIDER_CONFIGS, type AIProviderName } from './providers';
+import { PROVIDER_CONFIGS } from './providers';
+import type { ProviderConfigs } from "@dty/ai-assistant-core";
 
-export class AIService {
-  private model: string;
+const gitaryProviderStoreAdapter: AIProviderStore = {
+  getProvider: () => aiProviderStore.getProvider(),
+} as AIProviderStore;
 
+export class AIService extends CoreAIService {
   constructor(model: string = "gpt-4o-mini") {
-    this.model = model;
-  }
-
-  private async callAPI(
-    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-    responseFormat?: { type: string }
-  ) {
-    const currentProvider = aiProviderStore.getProvider();
-    const modelProvider = getModelProvider(currentProvider);
-    const modelName = this.parseModelName(this.model, currentProvider);
-    const model = modelProvider.chat(modelName);
-
-    const systemMessages = messages.filter(m => m.role === 'system');
-    const userMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-    
-    const systemPrompt = systemMessages.map(m => m.content).join('\n\n');
-    const prompt = userMessages.map(m => m.content).join('\n\n');
-
-    const result = await generateText({
-      model,
-      system: systemPrompt || undefined,
-      prompt,
-      ...(responseFormat?.type === 'json_object' ? { responseFormat: { type: 'json_object' } } : {}),
-    });
-
-    return result.text;
-  }
-
-  private parseModelName(modelString: string, defaultProvider: AIProviderName): string {
-    const segments = modelString.split("/");
-    if (segments.length > 1) {
-      const providerCandidate = segments[0] as AIProviderName;
-      if (PROVIDER_CONFIGS[providerCandidate]) {
-        return segments.slice(1).join("/");
-      }
-    }
-    
-    const providerConfig = PROVIDER_CONFIGS[defaultProvider];
-    if (providerConfig && modelString === providerConfig.defaultModel) {
-      return modelString;
-    }
-    
-    return modelString;
-  }
-
-  async generateText(prompt: string) {
-    return this.callAPI([{ role: "user", content: prompt }]);
-  }
-
-  async generateJSONResponse(prompt: string) {
-    return this.callAPI([{ role: "user", content: prompt }], {
-      type: "json_object",
+    super({
+      providerStore: gitaryProviderStoreAdapter,
+      providerConfigs: PROVIDER_CONFIGS as ProviderConfigs,
+      defaultModel: model,
     });
   }
 
@@ -73,7 +27,7 @@ export class AIService {
 2. 添加细节描述，包括环境、人物状态、动作等
 3. 控制在200字以内`;
 
-    return this.callAPI([{ role: "user", content: prompt }]);
+    return this.generateText(prompt);
   }
 
   async generateDivergentOptions(scene: string, history: string[]) {
@@ -88,6 +42,6 @@ export class AIService {
 2. 确保与已有情节连贯
 3. 每个方向都要有独特性`;
 
-    return this.callAPI([{ role: "user", content: prompt }]);
+    return this.generateText(prompt);
   }
 }

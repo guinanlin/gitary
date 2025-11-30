@@ -41,7 +41,6 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.41",
-    "@ai-sdk/openai": "^2.0.74",
     "@babel/standalone": "^7.26.2",
     "@chakra-ui/icons": "^2.1.0",
     "@chakra-ui/react": "^2.8.0",
@@ -72,6 +71,7 @@
     "add": "^2.0.6",
     "ai": "^5.0.104",
     "ali-oss": "^6.21.0",
+    "@dty/ai-assistant-core": "workspace:*",
     "app-toolkit": "workspace:*",
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",

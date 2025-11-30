@@ -1,9 +1,19 @@
-import { stepCountIs } from 'ai';
-import { getModelProvider, getModelName } from './ai-sdk-config';
+import type { IToolContext } from "@dty/ai-assistant-core";
+import { getAIModel } from "@dty/ai-assistant-core";
 import { aiProviderStore } from './ai-provider.store';
-import { getWorkspaceContextTool } from '@/features/global-sidecar-providers/tools/workspace-context';
-import { fsReaddirTool, fsReadFileTool, fsStatTool, fsAnalyzeFileTool } from '@/features/global-sidecar-providers/tools/fs';
-import { weatherTool } from '@/features/global-sidecar-providers/tools/weather';
+import { PROVIDER_CONFIGS } from './providers';
+import type { ProviderConfigs } from "@dty/ai-assistant-core";
+import { GitaryContextProvider } from './adapters/gitary-context-provider';
+import { GitaryFileSystemProvider } from './adapters/gitary-file-system-provider';
+import { GitaryI18nProvider } from './adapters/gitary-i18n-provider';
+import { 
+  getWorkspaceContextTool, 
+  createWeatherTool,
+  createFsReaddirTool,
+  createFsReadFileTool,
+  createFsStatTool,
+  createFsAnalyzeFileTool
+} from '@dty/ai-assistant-core';
 import {
   excalidrawAnalyzeTool,
   excalidrawAIGenerateDiagramTool,
@@ -13,29 +23,43 @@ import {
   excalidrawModifyTool,
 } from '@/features/global-sidecar-providers/tools/excalidraw';
 
-/**
- * 获取所有 AI 助手工具
- */
-export function getGitaryTools() {
-  return {
-    getWeather: weatherTool,
-    get_workspace_context: getWorkspaceContextTool,
-    fs_readdir: fsReaddirTool,
-    fs_readFile: fsReadFileTool,
-    fs_analyzeFile: fsAnalyzeFileTool,
-    fs_stat: fsStatTool,
-    excalidraw_analyze: excalidrawAnalyzeTool,
-    excalidraw_ai_generate_diagram: excalidrawAIGenerateDiagramTool,
-    excalidraw_ai_append_diagram: excalidrawAIAppendDiagramTool,
-    excalidraw_create_diagram: excalidrawCreateDiagramTool,
-    excalidraw_append_diagram: excalidrawAppendDiagramTool,
-    excalidraw_modify: excalidrawModifyTool,
-  };
+const contextProvider = new GitaryContextProvider();
+const fileSystemProvider = new GitaryFileSystemProvider();
+const i18nProvider = new GitaryI18nProvider();
+
+const toolContext: IToolContext = {
+  fileSystem: fileSystemProvider,
+  contextProvider: contextProvider,
+  i18n: i18nProvider,
+  getAIModel: () => {
+    const currentProvider = aiProviderStore.getProvider();
+    return getAIModel(currentProvider, PROVIDER_CONFIGS as ProviderConfigs);
+  },
+};
+
+function createToolsFromFactories() {
+  const tools: Record<string, any> = {};
+
+  tools.getWeather = createWeatherTool(toolContext);
+  tools.get_workspace_context = getWorkspaceContextTool(toolContext);
+  tools.fs_readdir = createFsReaddirTool(toolContext);
+  tools.fs_readFile = createFsReadFileTool(toolContext);
+  tools.fs_analyzeFile = createFsAnalyzeFileTool(toolContext);
+  tools.fs_stat = createFsStatTool(toolContext);
+  tools.excalidraw_analyze = excalidrawAnalyzeTool(toolContext);
+  tools.excalidraw_ai_generate_diagram = excalidrawAIGenerateDiagramTool(toolContext);
+  tools.excalidraw_ai_append_diagram = excalidrawAIAppendDiagramTool(toolContext);
+  tools.excalidraw_create_diagram = excalidrawCreateDiagramTool(toolContext);
+  tools.excalidraw_append_diagram = excalidrawAppendDiagramTool(toolContext);
+  tools.excalidraw_modify = excalidrawModifyTool(toolContext);
+
+  return tools;
 }
 
-/**
- * 获取 AI 助手的系统提示词
- */
+export function getGitaryTools() {
+  return createToolsFromFactories();
+}
+
 export function getGitarySystemPrompt(contexts?: Array<{ description: string; value: string }>) {
   return [
     '你是一个项目内的 AI 助手。你必须使用可用的工具来回答用户的问题。',
@@ -93,18 +117,9 @@ export function getGitarySystemPrompt(contexts?: Array<{ description: string; va
   ].join('\n\n');
 }
 
-/**
- * 获取 AI 模型配置
- */
 export function getGitaryModel() {
   const currentProvider = aiProviderStore.getProvider();
-  const modelProvider = getModelProvider(currentProvider);
-  const modelName = getModelName(currentProvider);
-  return modelProvider.chat(modelName);
+  return getAIModel(currentProvider, PROVIDER_CONFIGS as ProviderConfigs);
 }
 
-/**
- * 工具调用的最大步数
- * 注意：对于简单的工具调用（如天气查询），通常只需要1-2步即可完成
- */
 export const MAX_TOOL_STEPS = 3;

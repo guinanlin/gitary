@@ -1,22 +1,16 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { PROVIDER_CONFIGS, type AIProviderName } from './providers';
+import type { AIProviderName, ProviderConfigs } from './providers';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
-/**
- * 创建自定义 fetch 函数
- * 主要用于移除 GitCode 不支持的 x-stainless-* 请求头
- */
 function createCustomFetch(): typeof fetch {
   const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
-    // 非 GitCode 请求,直接转发
     if (!url.includes("gitcode.com")) {
       return fetch(input, init);
     }
 
-    // GitCode 兼容性: 移除 x-stainless-* 请求头
     const customInit: RequestInit = { ...init };
 
     if (customInit.headers) {
@@ -45,21 +39,25 @@ function createCustomFetch(): typeof fetch {
       customInit.headers = headers;
     }
 
-    // 直接返回原始响应,streamText 会自动处理流式数据
     return fetch(input, customInit);
   };
 
   return customFetch as typeof fetch;
 }
 
-const providerClients = new Map<AIProviderName, ReturnType<typeof createOpenAI>>();
+const providerClients = new Map<string, ReturnType<typeof createOpenAI>>();
 
-export function getModelProvider(provider: AIProviderName) {
-  if (providerClients.has(provider)) {
-    return providerClients.get(provider)!;
+export function getModelProvider(
+  provider: AIProviderName,
+  configs: ProviderConfigs
+): ReturnType<typeof createOpenAI> {
+  const cacheKey = `${provider}-${configs[provider]?.baseUrl}`;
+  
+  if (providerClients.has(cacheKey)) {
+    return providerClients.get(cacheKey)!;
   }
 
-  const config = PROVIDER_CONFIGS[provider];
+  const config = configs[provider];
   if (!config) {
     throw new Error(`未识别的 AI provider: ${provider}`);
   }
@@ -76,14 +74,15 @@ export function getModelProvider(provider: AIProviderName) {
     fetch: customFetch,
   });
 
-  providerClients.set(provider, client);
+  providerClients.set(cacheKey, client);
   return client;
 }
 
-export function getModelName(provider: AIProviderName): string {
-  const config = PROVIDER_CONFIGS[provider];
+export function getModelName(provider: AIProviderName, configs: ProviderConfigs): string {
+  const config = configs[provider];
   if (!config) {
     throw new Error(`未识别的 AI provider: ${provider}`);
   }
   return config.defaultModel;
 }
+
