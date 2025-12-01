@@ -2,7 +2,7 @@ import { useDocument } from "@/hooks/use-document";
 import { TabIconButton } from "@/xbook/ui/components/tab";
 import { CommandKeys } from "xbook/constants/tokens";
 import { commandService } from "xbook/services/commandService";
-import { Loader2 } from "lucide-react";
+import { Loader2, Presentation } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -456,6 +456,35 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   );
 
 
+  const generatePptButtonElement = (
+    <button
+      onClick={() => {
+        console.log("当前 Markdown 文档内容：");
+        console.log("=".repeat(50));
+        console.log(content);
+        console.log("=".repeat(50));
+        console.log("文档 URI:", uri);
+      }}
+      className={cn(
+        "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
+        "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+      )}
+      title="生成PPT - 发送到 Gemini"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Presentation
+        className={cn(
+          "h-5 w-5 transition-transform duration-200",
+          "group-hover:scale-110"
+        )}
+      />
+    </button>
+  );
+
   const sourceModeToggleButtonElement = (
     <button
       onClick={() => {
@@ -532,6 +561,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       )}
       {rightButtonContainerElement && (
         <>
+          {createPortal(generatePptButtonElement, rightButtonContainerElement)}
           {createPortal(sourceModeToggleButtonElement, rightButtonContainerElement)}
         </>
       )}

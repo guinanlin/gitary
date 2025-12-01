@@ -32,37 +32,43 @@ export interface AIContext {
 }
 
 export class AIContextService {
-  async getCurrentPageContext(): Promise<{ uri?: string; openerId?: string } | undefined> {
-    try {
-      console.log("[AIContextService] Getting current page context...");
+  private lastPageContextCache: { uri?: string; openerId?: string } | undefined = undefined;
+  private lastPageContextTime: number = 0;
+  private readonly CACHE_DURATION = 100;
 
+  async getCurrentPageContext(): Promise<{ uri?: string; openerId?: string } | undefined> {
+    const now = Date.now();
+    if (this.lastPageContextCache && (now - this.lastPageContextTime) < this.CACHE_DURATION) {
+      return this.lastPageContextCache;
+    }
+
+    try {
       if (!layoutService || !layoutService.pageBox) {
-        console.warn("[AIContextService] layoutService or pageBox not available");
         return undefined;
       }
 
       let page = layoutService.pageBox.getCurrentPage?.();
 
       if (!page) {
-        console.warn("[AIContextService] layoutService.pageBox.getCurrentPage() returned undefined. Trying to find active page from list.");
         const pageList = layoutService.pageBox.getPageList?.() || [];
         page = pageList.find(p => p.active);
       }
 
       if (!page) {
-        console.warn("[AIContextService] No active page found.");
+        this.lastPageContextCache = undefined;
+        this.lastPageContextTime = now;
         return undefined;
       }
-
-      console.log("[AIContextService] Found active page:", page);
 
       const viewData = page.viewData as { type?: string; props?: { uri?: string } } | undefined;
       const uri = viewData?.props?.uri as string | undefined;
       const openerId = viewData?.type as string | undefined;
 
-      console.log("[AIContextService] Extracted URI:", uri, "OpenerID:", openerId);
+      const result = { uri, openerId };
+      this.lastPageContextCache = result;
+      this.lastPageContextTime = now;
 
-      return { uri, openerId };
+      return result;
     } catch (error) {
       console.error("[AIContextService] Error in getCurrentPageContext:", error);
       return undefined;

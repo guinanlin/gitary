@@ -181,33 +181,59 @@ export const GlobalChatPanel = ({ closePane, onNewConversation }: GlobalChatPane
 
   useEffect(() => {
     let cancelled = false;
+    let updateTimer: NodeJS.Timeout | null = null;
 
     const updateContext = async () => {
-      try {
-        const pageCtx = await aiContextService.getCurrentPageContext();
-        const uri = pageCtx?.uri;
-
-        if (cancelled) return;
-
-        if (uri) {
-          const spaceId = spaceHelper.getSpaceIdFromUri(uri);
-          if (!cancelled) {
-            setCurrentSpaceId(spaceId);
-            const newDefaultConversationId = spaceId ? `default-${spaceId}` : "global";
-            setConversationId(newDefaultConversationId);
-          }
-        } else {
-          if (!cancelled) {
-            setCurrentSpaceId(null);
-            setConversationId("global");
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setCurrentSpaceId(null);
-          setConversationId("global");
-        }
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+        updateTimer = null;
       }
+
+      updateTimer = setTimeout(async () => {
+        try {
+          const pageCtx = await aiContextService.getCurrentPageContext();
+          if (cancelled) return;
+
+          const uri = pageCtx?.uri;
+
+          if (uri) {
+            const spaceId = spaceHelper.getSpaceIdFromUri(uri);
+            if (!cancelled) {
+              setCurrentSpaceId((prev) => {
+                if (prev === spaceId) return prev;
+                return spaceId;
+              });
+              const newDefaultConversationId = spaceId ? `default-${spaceId}` : "global";
+              setConversationId((prev) => {
+                if (prev === newDefaultConversationId) return prev;
+                return newDefaultConversationId;
+              });
+            }
+          } else {
+            if (!cancelled) {
+              setCurrentSpaceId((prev) => {
+                if (prev === null) return prev;
+                return null;
+              });
+              setConversationId((prev) => {
+                if (prev === "global") return prev;
+                return "global";
+              });
+            }
+          }
+        } catch {
+          if (!cancelled) {
+            setCurrentSpaceId((prev) => {
+              if (prev === null) return prev;
+              return null;
+            });
+            setConversationId((prev) => {
+              if (prev === "global") return prev;
+              return "global";
+            });
+          }
+        }
+      }, 100);
     };
 
     updateContext();
@@ -222,6 +248,9 @@ export const GlobalChatPanel = ({ closePane, onNewConversation }: GlobalChatPane
 
     return () => {
       cancelled = true;
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+      }
       subscription?.unsubscribe();
     };
   }, []);

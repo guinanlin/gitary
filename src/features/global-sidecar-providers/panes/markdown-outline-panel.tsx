@@ -77,23 +77,45 @@ export const MarkdownOutlinePanel = () => {
   const { content } = useMarkdownContent(currentUri);
   
   useEffect(() => {
+    let cancelled = false;
+
     const updateCurrentUri = async () => {
       try {
         const pageContext = await aiContextService.getCurrentPageContext();
+        if (cancelled) return;
+        
         if (pageContext?.uri && pageContext.openerId === "zenmark-editor") {
-          setCurrentUri(pageContext.uri);
+          setCurrentUri((prev) => {
+            if (prev === pageContext.uri) return prev;
+            return pageContext.uri ?? null;
+          });
         } else {
-          setCurrentUri(null);
+          setCurrentUri((prev) => {
+            if (prev === null) return prev;
+            return null;
+          });
         }
       } catch (error) {
+        if (cancelled) return;
         console.error("Error getting page context:", error);
         setCurrentUri(null);
       }
     };
     
     updateCurrentUri();
-    const interval = setInterval(updateCurrentUri, 500);
-    return () => clearInterval(interval);
+
+    const layoutService = (window as any).xbook?.layoutService;
+    const pageBox = layoutService?.pageBox;
+    const subscription = pageBox?.currentPage$?.subscribe(() => {
+      if (!cancelled) {
+        updateCurrentUri();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
   }, []);
   
   useEffect(() => {
