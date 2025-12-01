@@ -11,6 +11,9 @@ import {
   RefreshCw,
   Plus,
   Link,
+  Brain,
+  Network,
+  GitBranch,
 } from "lucide-react";
 
 export default createTreeHelper<FolderTreeNode>().createPlugin({
@@ -31,5 +34,8 @@ export default createTreeHelper<FolderTreeNode>().createPlugin({
     renderer.register("AiOutlineReload", RefreshCw);
     renderer.register("AiOutlineFileText", FileText);
     renderer.register("AiFillFileText", FileText);
+    renderer.register("Brain", Brain);
+    renderer.register("Network", Network);
+    renderer.register("GitBranch", GitBranch);
   },
 });

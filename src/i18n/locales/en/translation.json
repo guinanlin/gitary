@@ -161,7 +161,9 @@
     "aiStoryCards": "AI Story Cards",
     "aiResume": "AI Resume Assistant",
     "aiQuotes": "AI Quotes",
-    "excalidraw": "Excalidraw Canvas"
+    "excalidraw": "Excalidraw Canvas",
+    "drawio": "Draw.io Diagram",
+    "reactFlow": "React Flow Diagram"
   },
   "globalChat": {
     "welcomeTitle": "How can I help you today?",
@@ -209,6 +211,25 @@
     "example2": "User registration flow: input info → validate → create account → send confirmation email",
     "canvasRequired": "Please open this assistant in the Excalidraw canvas to write generated diagrams to the current canvas.",
     "aiAssistant": "AI Drawing Assistant"
+  },
+  "drawio": {
+    "title": "Draw.io Diagram Editor",
+    "loading": "Loading editor...",
+    "newFile": "New Draw.io Diagram",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "saveError": "Save failed",
+    "edited": "Unsaved changes",
+    "saveNow": "Save now",
+    "uriRequired": "URI is required"
+  },
+  "reactFlow": {
+    "title": "React Flow Diagram",
+    "loading": "Loading diagram...",
+    "newFile": "New React Flow Diagram",
+    "addNode": "Add Node",
+    "nodeLabel": "Node {{number}}",
+    "uriRequired": "URI is required"
   },
   "story": {
     "loadDataFailed": "Failed to Load Data",

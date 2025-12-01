@@ -163,7 +163,10 @@
     "aiQuotes": "AI名言",
     "meetingMinutes": "会议纪要",
     "newMeetingMinutes": "新建会议纪要",
-    "excalidraw": "Excalidraw 画板"
+    "newMindMap": "新建思维导图",
+    "excalidraw": "Excalidraw 画板",
+    "drawio": "Draw.io 图表",
+    "reactFlow": "React Flow 流程图"
   },
   "globalChat": {
     "welcomeTitle": "我能为您做些什么？",
@@ -211,6 +214,25 @@
     "example2": "用户注册流程：输入信息 → 验证 → 创建账户 → 发送确认邮件",
     "canvasRequired": "请在 Excalidraw 画布中打开并使用该助手，以便把生成的图形写入当前画布。",
     "aiAssistant": "AI 绘图助手"
+  },
+  "drawio": {
+    "title": "Draw.io 图表编辑器",
+    "loading": "正在加载编辑器...",
+    "newFile": "新建 Draw.io 图表",
+    "saving": "正在保存...",
+    "saved": "已保存",
+    "saveError": "保存失败",
+    "edited": "有未保存更改",
+    "saveNow": "立即保存",
+    "uriRequired": "需要提供 URI"
+  },
+  "reactFlow": {
+    "title": "React Flow 流程图",
+    "loading": "正在加载流程图...",
+    "newFile": "新建 React Flow 流程图",
+    "addNode": "添加节点",
+    "nodeLabel": "节点 {{number}}",
+    "uriRequired": "需要提供 URI"
   },
   "story": {
     "loadDataFailed": "加载数据失败",

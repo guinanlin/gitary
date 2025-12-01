@@ -1,466 +1,497 @@
-import { useToast } from "@/hooks/use-toast";
-import { AIService } from "@/services/ai/ai-service";
-import { Edit2, MoreHorizontal, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import ReactFlow, {
-  Background,
-  ConnectionMode,
-  Controls,
-  Edge,
-  MarkerType,
-  Node,
-  Position,
-  Connection,
-  addEdge,
-} from "reactflow";
-import "reactflow/dist/style.css";
-import { Button } from "./ui/button";
-import { Card } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "./ui/dropdown-menu";
-import { Input } from "./ui/input";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useColorMode } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { MAX_NODE_WIDTH, MIN_NODE_HEIGHT } from "./mind-map/constants";
+import type { MindMapStore } from "./mind-map/mind-map-store";
+import { useMindMap } from "./mind-map/use-mind-map";
+import type { MindMapNode, ViewportState } from "./mind-map/types";
+import { MindMapSaveStatus, ThemeMode, THEMES } from "./mind-map/types";
+import { Toolbar } from "./mind-map/components/toolbar";
+import { MindMapEdge } from "./mind-map/components/mind-map-edge";
+import { MindMapNodeComponent } from "./mind-map/components/mind-map-node";
+import { CanvasControls } from "./mind-map/components/canvas-controls";
+import { Instructions } from "./mind-map/components/instructions";
 
-interface MindFlowNode extends Node {
-  data: {
-    content: string;
-    isRoot?: boolean;
-  };
+interface MindFlowCanvasProps {
+  store: MindMapStore;
+  saveStatus: MindMapSaveStatus;
 }
 
-interface MindFlowProps {
-  saveData: (data: { nodes: MindFlowNode[]; edges: Edge[]; apiKey?: string }) => Promise<void>;
-  loadData: () => Promise<{ nodes?: MindFlowNode[]; edges?: Edge[]; apiKey?: string }>;
-}
+const buildViewport = (): ViewportState => {
+  if (typeof window === "undefined") {
+    return { x: 0, y: 0, scale: 1 };
+  }
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 };
+};
 
-type EditNodeHandler = (node: MindFlowNode) => void;
-type DeleteNodeHandler = (nodeId: string) => void;
+const getContainerSize = (element: HTMLDivElement | null) => {
+  if (element) {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width || 1, height: rect.height || 1 };
+  }
+  if (typeof window !== "undefined") {
+    return { width: window.innerWidth, height: window.innerHeight };
+  }
+  return { width: 1, height: 1 };
+};
 
-const createNodeTypes = (handleEditNode: EditNodeHandler, handleDeleteNode: DeleteNodeHandler) => ({
-  default: ({ data, id }: { data: { content: string; isRoot?: boolean }, id: string }) => (
-    <div 
-      className={`group px-4 py-2 rounded-lg shadow-md border relative ${
-        data.isRoot ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
-      }`}
-    >
-      <div className="flex flex-col gap-1">
-        <div className="text-xs text-gray-500">ID: {id}</div>
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm flex-grow">{data.content}</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-6 w-6 p-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[160px]">
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                handleEditNode({ id, data } as MindFlowNode);
-              }}>
-                <Edit2 className="h-4 w-4 mr-2" />
-                编辑
-              </DropdownMenuItem>
-              {!data.isRoot && (
-                <DropdownMenuItem 
-                  className="text-red-600 focus:text-red-700 focus:bg-red-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteNode(id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  删除
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-      <div className="absolute left-0 top-1/2 w-3 h-3 -ml-1.5 -mt-1.5 bg-blue-400 rounded-full opacity-0 group-hover:opacity-100" />
-      <div className="absolute right-0 top-1/2 w-3 h-3 -mr-1.5 -mt-1.5 bg-blue-400 rounded-full opacity-0 group-hover:opacity-100" />
-    </div>
-  ),
-});
+const STATUS_CLASS_MAP: Record<MindMapSaveStatus, string> = {
+  [MindMapSaveStatus.IDLE]: "text-slate-500 bg-white/90 border-slate-200",
+  [MindMapSaveStatus.DIRTY]: "text-amber-700 bg-amber-50 border-amber-200",
+  [MindMapSaveStatus.SAVING]: "text-blue-700 bg-blue-50 border-blue-200",
+  [MindMapSaveStatus.SAVED]: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  [MindMapSaveStatus.ERROR]: "text-red-700 bg-red-50 border-red-200",
+};
 
-export function MindFlowCanvas({ saveData, loadData }: MindFlowProps) {
+export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
   const { t } = useTranslation();
-  const [nodes, setNodes] = useState<MindFlowNode[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [selectedNode, setSelectedNode] = useState<MindFlowNode | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [isExpanding, setIsExpanding] = useState(false);
-  const { toast } = useToast();
-  const aiService = new AIService("gpt-4o-mini");
-  const [newNodeContent, setNewNodeContent] = useState("");
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingContent, setEditingContent] = useState("");
-  const [nextNodeId, setNextNodeId] = useState(1);
+  const { colorMode } = useColorMode();
+  const theme = colorMode === "dark" ? ThemeMode.DARK : ThemeMode.LIGHT;
 
-  useEffect(() => {
-    const loadSavedData = async () => {
-      try {
-        const data = await loadData();
-        if (data) {
-          if (data.apiKey) {
-            setApiKey(data.apiKey);
+  const {
+    nodes,
+    selectedId,
+    setSelectedId,
+    editingId,
+    setEditingId,
+    updateNodeText,
+    updateDraft,
+    addChild,
+    addSibling,
+    deleteNode,
+    toggleCollapse,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useMindMap(store);
+
+  const [viewport, setViewport] = useState<ViewportState>(buildViewport);
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const hasManualViewChangeRef = useRef(false);
+
+  const navigateSelection = useCallback(
+    (direction: "left" | "right" | "up" | "down") => {
+      if (!selectedId) return;
+      const current = nodes[selectedId];
+      if (!current) return;
+
+      let nextId: string | null = null;
+      const allNodes = Object.values(nodes) as MindMapNode[];
+
+      if (direction === "left" && current.parentId) {
+        nextId = current.parentId;
+      } else if (direction === "right" && current.children.length > 0 && current.isExpanded) {
+        nextId = current.children[Math.floor(current.children.length / 2)];
+      } else {
+        const cx = current.x || 0;
+        const cy = current.y || 0;
+        let closestDist = Number.POSITIVE_INFINITY;
+        allNodes.forEach((node) => {
+          if (node.id === current.id) return;
+          const nx = node.x || 0;
+          const ny = node.y || 0;
+          const dx = nx - cx;
+          const dy = ny - cy;
+          let valid = false;
+          if (direction === "up") valid = dy < -10 && Math.abs(dx) < 100;
+          if (direction === "down") valid = dy > 10 && Math.abs(dx) < 100;
+          if (direction === "right") valid = dx > 10;
+          if (valid) {
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < closestDist) {
+              closestDist = dist;
+              nextId = node.id;
+            }
           }
-          if (data.nodes) {
-            setNodes(data.nodes);
-          }
-          if (data.edges) {
-            setEdges(data.edges);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        toast({
-          title: t("mindFlow.loadingFailed"),
-          description: t("mindFlow.loadDataFailed"),
-          variant: "destructive",
         });
       }
-    };
-    loadSavedData();
-  }, [loadData, t, toast]);
 
-  useEffect(() => {
-    const autoSave = async () => {
-      try {
-        await saveData({ 
-          nodes, 
-          edges
-        });
-        console.log('Auto saved successfully');
-      } catch (error) {
-        console.error("Auto save failed:", error);
-      }
-    };
-
-    // 使用防抖来避免频繁保存
-    const timeoutId = setTimeout(autoSave, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [nodes, edges, apiKey, saveData]);
-
-  const expandNode = async (direction: string) => {
-    if (!selectedNode || !apiKey) {
-      toast({
-        title: t("mindFlow.error"),
-        description: t("mindFlow.selectNodeAndApiKey"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsExpanding(true);
-
-    try {
-      const prompt = `基于以下内容："${selectedNode.data.content}"
-根据方向提示："${direction}"
-请生成1个相关的想法或概念。要求：
-1. 想法要简洁但有深度
-2. 确保与原内容有关联性
-3. 严格按照以下JSON格式输出：
-{
-  "idea": {"content": "想法内容"}
-}`;
-
-      const response = await aiService.generateText(prompt);
-      const { idea } = JSON.parse(response);
-
-      const nodeId = (nextNodeId + 1).toString();
-      const newNode: MindFlowNode = {
-        id: nodeId,
-        type: 'default',
-        position: {
-          x: selectedNode.position.x + Math.cos(Math.PI / 4) * 250,
-          y: selectedNode.position.y + Math.sin(Math.PI / 4) * 250
-        },
-        data: { content: idea.content },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      };
-
-      const newEdge: Edge = {
-        id: `${selectedNode.id}-${nodeId}`,
-        source: selectedNode.id,
-        target: nodeId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-        },
-      };
-
-      setNodes((prev) => [...prev, newNode]);
-      setEdges((prev) => [...prev, newEdge]);
-      setNextNodeId(nextNodeId + 1);
-
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: t("mindFlow.generateFailed"),
-        description: t("mindFlow.cannotGenerate"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsExpanding(false);
-    }
-  };
-
-  const createRootNode = () => {
-    if (!newNodeContent.trim()) {
-      toast({
-        title: t("mindFlow.error"),
-        description: t("mindFlow.enterContent"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newNode: MindFlowNode = {
-      id: '1',
-      type: 'default',
-      position: { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 50 },
-      data: { 
-        content: newNodeContent,
-        isRoot: true 
-      },
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-    };
-
-    setNodes([newNode]);
-    setNewNodeContent("");
-  };
-
-  const handleEditNode = (node: MindFlowNode) => {
-    setEditingContent(node.data.content);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (!selectedNode || !editingContent.trim()) return;
-
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === selectedNode.id
-          ? { ...node, data: { ...node.data, content: editingContent.trim() } }
-          : node
-      )
-    );
-    setIsEditDialogOpen(false);
-  };
-
-  const handleDeleteNode = (nodeId: string) => {
-    if (window.confirm(t("mindFlow.confirmDelete"))) {
-      setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
-      setEdges((edges) => edges.filter(
-        (edge) => edge.source !== nodeId && edge.target !== nodeId
-      ));
-    }
-  };
-
-  const addManualNode = () => {
-    if (!selectedNode || !newNodeContent.trim()) {
-      toast({
-        title: t("mindFlow.error"),
-        description: t("mindFlow.enterContent"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const nodeId = (nextNodeId + 1).toString();
-    const newNode: MindFlowNode = {
-      id: nodeId,
-      type: 'default',
-      position: {
-        x: selectedNode.position.x + Math.cos(Math.PI / 4) * 250,
-        y: selectedNode.position.y + Math.sin(Math.PI / 4) * 250
-      },
-      data: { content: newNodeContent },
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-    };
-
-    const newEdge: Edge = {
-      id: `${selectedNode.id}-${nodeId}`,
-      source: selectedNode.id,
-      target: nodeId,
-      type: 'smoothstep',
-      animated: true,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-      },
-    };
-
-    setNodes((prev) => [...prev, newNode]);
-    setEdges((prev) => [...prev, newEdge]);
-    setNextNodeId(nextNodeId + 1);
-  };
-
-  const nodeTypes = useMemo(
-    () => createNodeTypes(handleEditNode, handleDeleteNode),
-    [handleEditNode, handleDeleteNode]
-  );
-
-  console.log("[nodes]", nodes, "[edges]", edges, "selectedNode", selectedNode);
-
-  const onConnect = useCallback(
-    (params: Connection) => {
-      // 确保有源节点和目标节点
-      if (params.source && params.target) {
-        const newEdge: Edge = {
-          id: `${params.source}-${params.target}`,
-          source: params.source,
-          target: params.target,
-          type: 'smoothstep',
-          animated: true,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        };
-        setEdges((eds) => addEdge(newEdge, eds));
+      if (nextId) {
+        setSelectedId(nextId);
       }
     },
-    []
+    [nodes, selectedId, setSelectedId],
+  );
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (editingId) return;
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      switch (event.key) {
+        case "Tab":
+          event.preventDefault();
+          if (selectedId) addChild(selectedId);
+          break;
+        case "Enter":
+          event.preventDefault();
+          if (selectedId) addSibling(selectedId);
+          break;
+        case "Backspace":
+        case "Delete":
+          if (selectedId) deleteNode(selectedId);
+          break;
+        case " ":
+          event.preventDefault();
+          if (selectedId) setEditingId(selectedId);
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          navigateSelection("left");
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          navigateSelection("right");
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          navigateSelection("up");
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          navigateSelection("down");
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [
+    selectedId,
+    editingId,
+    addChild,
+    addSibling,
+    deleteNode,
+    undo,
+    redo,
+    navigateSelection,
+    setEditingId,
+  ]);
+
+  const handleWheel = useCallback(
+    (event: React.WheelEvent) => {
+      event.preventDefault();
+      hasManualViewChangeRef.current = true;
+      if (event.ctrlKey || event.metaKey) {
+        const zoomSensitivity = 0.001;
+        const newScale = Math.min(
+          Math.max(0.1, viewport.scale - event.deltaY * zoomSensitivity),
+          5,
+        );
+        setViewport((prev) => ({ ...prev, scale: newScale }));
+      } else {
+        setViewport((prev) => ({
+          ...prev,
+          x: prev.x - event.deltaX,
+          y: prev.y - event.deltaY,
+        }));
+      }
+    },
+    [viewport.scale],
+  );
+
+  const handleMouseDown = (event: React.MouseEvent) => {
+    if ((event.target as Element).tagName === "svg" || (event.target as Element).id === "canvas-bg") {
+      setIsPanning(true);
+      setLastMousePos({ x: event.clientX, y: event.clientY });
+      setSelectedId(null);
+      hasManualViewChangeRef.current = true;
+    }
+  };
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (isPanning) {
+      const dx = event.clientX - lastMousePos.x;
+      const dy = event.clientY - lastMousePos.y;
+      setViewport((prev) => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+      setLastMousePos({ x: event.clientX, y: event.clientY });
+    }
+  };
+
+  const stopPanning = () => {
+    setIsPanning(false);
+  };
+
+  const handleZoomIn = () =>
+    setViewport((prev) => {
+      hasManualViewChangeRef.current = true;
+      return { ...prev, scale: Math.min(prev.scale * 1.2, 5) };
+    });
+  const handleZoomOut = () =>
+    setViewport((prev) => {
+      hasManualViewChangeRef.current = true;
+      return { ...prev, scale: Math.max(prev.scale / 1.2, 0.1) };
+    });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventGesture = (event: Event) => {
+      event.preventDefault();
+    };
+    const gestureEvents = ["gesturestart", "gesturechange", "gestureend"] as const;
+    gestureEvents.forEach((type) => {
+      container.addEventListener(type, preventGesture as EventListener, { passive: false });
+    });
+
+    return () => {
+      gestureEvents.forEach((type) => {
+        container.removeEventListener(type, preventGesture as EventListener);
+      });
+    };
+  }, []);
+
+  const handleResetView = useCallback(() => {
+    hasManualViewChangeRef.current = false;
+    const allNodes = Object.values(nodes) as MindMapNode[];
+    const visibleNodes = allNodes.filter((node) => {
+      if (node.x === undefined || node.y === undefined) return false;
+      let current = node;
+      while (current.parentId) {
+        const parent = nodes[current.parentId];
+        if (!parent || !parent.isExpanded) return false;
+        current = parent;
+      }
+      return true;
+    });
+
+    if (!visibleNodes.length) {
+      setViewport(buildViewport());
+      return;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    visibleNodes.forEach((node) => {
+      if (node.x === undefined || node.y === undefined) return;
+      const { x, y } = node;
+      const width = node.width || MAX_NODE_WIDTH;
+      const height = node.height || MIN_NODE_HEIGHT;
+      minX = Math.min(minX, x - width / 2);
+      maxX = Math.max(maxX, x + width / 2);
+      minY = Math.min(minY, y - height / 2);
+      maxY = Math.max(maxY, y + height / 2);
+    });
+
+    const padding = 80;
+    const bboxWidth = Math.max(maxX - minX, 100);
+    const bboxHeight = Math.max(maxY - minY, 100);
+    const { width: viewportWidth, height: viewportHeight } = getContainerSize(
+      containerRef.current,
+    );
+    const availableWidth = Math.max(viewportWidth - padding * 2, 100);
+    const availableHeight = Math.max(viewportHeight - padding * 2, 100);
+    const scaleX = availableWidth / bboxWidth;
+    const scaleY = availableHeight / bboxHeight;
+
+    let fitScale = Math.min(scaleX, scaleY);
+    fitScale = Math.min(fitScale, 1.2);
+    fitScale = Math.max(fitScale, 0.1);
+
+    const centerX = minX + bboxWidth / 2;
+    const centerY = minY + bboxHeight / 2;
+    const newX = viewportWidth / 2 - centerX * fitScale;
+    const newY = viewportHeight / 2 - centerY * fitScale;
+    setViewport({ x: newX, y: newY, scale: fitScale });
+  }, [nodes]);
+
+  useEffect(() => {
+    if (hasManualViewChangeRef.current) {
+      return;
+    }
+    const availableNodes = Object.values(nodes) as MindMapNode[];
+    const hasPositions = availableNodes.some(
+      (node) => node.x !== undefined && node.y !== undefined,
+    );
+    if (!hasPositions) return;
+    handleResetView();
+  }, [handleResetView, nodes]);
+
+  const saveStatusText = useMemo(() => {
+    switch (saveStatus) {
+      case MindMapSaveStatus.SAVING:
+        return t("mindFlow.status.saving");
+      case MindMapSaveStatus.SAVED:
+        return t("mindFlow.status.saved");
+      case MindMapSaveStatus.ERROR:
+        return t("mindFlow.status.error");
+      case MindMapSaveStatus.DIRTY:
+        return t("mindFlow.status.dirty");
+      case MindMapSaveStatus.IDLE:
+      default:
+        return t("mindFlow.status.idle");
+    }
+  }, [saveStatus, t]);
+
+  const toolbarLabels = useMemo(
+    () => ({
+      undo: t("mindFlow.toolbar.undo"),
+      redo: t("mindFlow.toolbar.redo"),
+      addChild: t("mindFlow.toolbar.addChild"),
+      deleteNode: t("mindFlow.toolbar.deleteNode"),
+    }),
+    [t],
+  );
+
+  const controlLabels = useMemo(
+    () => ({
+      zoomIn: t("mindFlow.controls.zoomIn"),
+      zoomOut: t("mindFlow.controls.zoomOut"),
+      reset: t("mindFlow.controls.reset"),
+    }),
+    [t],
+  );
+
+  const instructionsItems = useMemo(
+    () => [
+      { label: t("mindFlow.instructions.select"), action: t("mindFlow.instructions.selectAction") },
+      { label: t("mindFlow.instructions.edit"), action: t("mindFlow.instructions.editAction") },
+      {
+        label: t("mindFlow.instructions.addChild"),
+        action: t("mindFlow.instructions.addChildAction"),
+      },
+      {
+        label: t("mindFlow.instructions.addSibling"),
+        action: t("mindFlow.instructions.addSiblingAction"),
+      },
+      { label: t("mindFlow.instructions.delete"), action: t("mindFlow.instructions.deleteAction") },
+      {
+        label: t("mindFlow.instructions.navigate"),
+        action: t("mindFlow.instructions.navigateAction"),
+      },
+      { label: t("mindFlow.instructions.pan"), action: t("mindFlow.instructions.panAction") },
+    ],
+    [t],
+  );
+
+  const styles = THEMES[theme];
+
+  const renderEdges = useMemo(() => {
+    return (Object.values(nodes) as MindMapNode[]).map((node) => {
+      if (!node.parentId) return null;
+      const parent = nodes[node.parentId];
+      if (!parent || !parent.isExpanded) return null;
+      return (
+        <MindMapEdge key={`edge-${node.id}`} source={parent} target={node} theme={theme} />
+      );
+    });
+  }, [nodes, theme]);
+
+  const renderNodes = useMemo(() => {
+    return (Object.values(nodes) as MindMapNode[])
+      .filter((node) => {
+        if (!node.parentId) return true;
+        const parent = nodes[node.parentId];
+        return parent && parent.isExpanded && parent.x !== undefined;
+      })
+      .map((node) => (
+        <MindMapNodeComponent
+          key={node.id}
+          node={node}
+          theme={theme}
+          isSelected={selectedId === node.id}
+          isEditing={editingId === node.id}
+          onSelect={setSelectedId}
+          onEditStart={setEditingId}
+          onEditChange={updateDraft}
+          onEditEnd={(id, text) => {
+            updateNodeText(id, text);
+            updateDraft(id, null);
+            setEditingId(null);
+          }}
+          onToggleCollapse={toggleCollapse}
+          onAddChild={addChild}
+        />
+      ));
+  }, [
+    nodes,
+    theme,
+    selectedId,
+    editingId,
+    setSelectedId,
+    setEditingId,
+    updateDraft,
+    updateNodeText,
+    toggleCollapse,
+    addChild,
+  ]);
+
+  const canvas: ReactNode = (
+    <div
+      className="w-full h-full cursor-grab active:cursor-grabbing"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={stopPanning}
+      onMouseLeave={stopPanning}
+    >
+      <svg id="canvas-bg" className="w-full h-full block" xmlns="http://www.w3.org/2000/svg">
+        <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.scale})`}>
+          {renderEdges}
+          {renderNodes}
+        </g>
+      </svg>
+    </div>
   );
 
   return (
-    <>
-      <div className="h-screen w-full relative">
-        <div className="absolute top-4 left-4 z-10 w-80 space-y-2">
-          <Input
-            type="password"
-            placeholder="OpenAI API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          
-          {nodes.length === 0 ? (
-            <Card className="p-4">
-              <p className="text-sm font-medium mb-2">{t("mindFlow.createCenterTheme")}</p>
-              <div className="flex flex-col space-y-2">
-                <Input
-                  placeholder={t("mindFlow.enterMainContent")}
-                  value={newNodeContent}
-                  onChange={(e) => setNewNodeContent(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && createRootNode()}
-                />
-                <Button onClick={createRootNode} className="w-full">
-                  {t("mindFlow.create")}
-                </Button>
-              </div>
-            </Card>
-          ) : selectedNode && (
-            <Card className="p-4">
-              <p className="text-sm font-medium mb-2">选中���点: {selectedNode.data.content}</p>
-              <div className="flex flex-col space-y-2">
-                <Input
-                  placeholder={t("mindFlow.addNodeContent")}
-                  value={newNodeContent}
-                  onChange={(e) => setNewNodeContent(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addManualNode()}
-                />
-                <Button 
-                  size="sm"
-                  onClick={addManualNode}
-                  className="w-full"
-                >
-                  {t("mindFlow.addNode")}
-                </Button>
-                <div className="h-px bg-gray-200 my-2" />
-                <Button 
-                  size="sm"
-                  onClick={() => expandNode(t("mindFlow.deepAnalysis"))}
-                  disabled={isExpanding}
-                  className="w-full"
-                >
-                  {t("mindFlow.deepAnalysis")}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => expandNode(t("mindFlow.lateralThinking"))}
-                  disabled={isExpanding}
-                  className="w-full"
-                >
-                  {t("mindFlow.lateralThinking")}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => expandNode(t("mindFlow.abstractSummary"))}
-                  disabled={isExpanding}
-                  className="w-full"
-                >
-                  {t("mindFlow.abstractSummary")}
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-        
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodeClick={(_, node) => setSelectedNode(node as MindFlowNode)}
-          onPaneClick={() => setSelectedNode(null)}
-          onConnect={onConnect}
-          connectOnClick={true}
-          fitView
-          defaultEdgeOptions={{
-            type: 'smoothstep',
-            animated: true,
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-            },
-          }}
-          connectionMode={ConnectionMode.Loose}
-          snapToGrid={true}
-          snapGrid={[15, 15]}
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.5}
-          maxZoom={2}
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
+    <div
+      ref={containerRef}
+      className={`relative w-full h-full overflow-hidden ${styles.bg} selection:bg-blue-500/30`}
+    >
+      <Toolbar
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        onAdd={() => selectedId && addChild(selectedId)}
+        onDelete={() => selectedId && deleteNode(selectedId)}
+        labels={toolbarLabels}
+      />
+
+      <div
+        className={`absolute top-4 right-4 z-20 px-3 py-1.5 rounded-full border text-xs font-medium shadow-sm ${STATUS_CLASS_MAP[saveStatus]}`}
+      >
+        {saveStatusText}
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>编辑节点内容</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              value={editingContent}
-              onChange={(e) => setEditingContent(e.target.value)}
-              placeholder="输入新的内容..."
-              autoFocus
-            />
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                取消
-              </Button>
-              <Button onClick={handleSaveEdit}>
-                保存
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      {canvas}
+
+      <CanvasControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onReset={handleResetView}
+        labels={controlLabels}
+      />
+      <Instructions
+        title={t("mindFlow.instructions.title")}
+        toggleShow={t("mindFlow.instructions.show")}
+        toggleHide={t("mindFlow.instructions.hide")}
+        items={instructionsItems}
+      />
+    </div>
   );
-} 
+};

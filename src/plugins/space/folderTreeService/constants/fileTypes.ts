@@ -1,3 +1,4 @@
+import { Brain, Network, GitBranch } from "lucide-react";
 import {
   AiFillCode,
   AiFillFile,
@@ -36,6 +37,21 @@ export const FILE_TYPES: Record<string, FileTypeConfig> = {
     extensions: [".ts", ".tsx"],
     icon: SiTypescript,
     color: "#3178c6",
+  },
+  mindMap: {
+    extensions: [".mindmap.json", ".mindflow.json"],
+    icon: Brain,
+    color: "#0ea5e9",
+  },
+  drawio: {
+    extensions: [".drawio", ".xml"],
+    icon: Network,
+    color: "#f59e0b",
+  },
+  reactFlow: {
+    extensions: [".flowdemo.json"],
+    icon: GitBranch,
+    color: "#8b5cf6",
   },
   javascript: {
     extensions: [".js", ".jsx", ".mjs"],

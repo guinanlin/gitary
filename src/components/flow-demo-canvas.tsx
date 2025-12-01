@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReactFlow, {
   Background,
   Controls,
@@ -8,6 +9,7 @@ import ReactFlow, {
   Connection,
   useNodesState,
   useEdgesState,
+  ReactFlowInstance,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Button } from "./ui/button";
@@ -49,8 +51,11 @@ const initialEdges: Edge[] = [
 ];
 
 export function FlowDemoCanvas({ saveData, loadData }: FlowDemoProps) {
+  const { t } = useTranslation();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const connectingNodeId = useRef<string | null>(null);
 
   useEffect(() => {
     const loadSavedData = async () => {
@@ -82,25 +87,70 @@ export function FlowDemoCanvas({ saveData, loadData }: FlowDemoProps) {
   }, [nodes, edges, saveData]);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => {
+      connectingNodeId.current = null;
+      setEdges((eds) => addEdge(params, eds));
+    },
     [setEdges]
   );
 
-  const addNewNode = () => {
+  const onConnectStart = useCallback((_: React.MouseEvent | React.TouchEvent, { nodeId }: { nodeId: string | null }) => {
+    connectingNodeId.current = nodeId;
+  }, []);
+
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      if (!connectingNodeId.current || !reactFlowInstance) return;
+
+      const targetIsPane = (event.target as Element)?.classList.contains("react-flow__pane");
+      
+      if (targetIsPane) {
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: event instanceof MouseEvent ? event.clientX : event.touches[0].clientX,
+          y: event instanceof MouseEvent ? event.clientY : event.touches[0].clientY,
+        });
+
+        const newNode: Node = {
+          id: `${Date.now()}`,
+          data: { label: t("reactFlow.nodeLabel", { number: nodes.length + 1 }) },
+          position,
+        };
+
+        setNodes((nds) => [...nds, newNode]);
+
+        const newEdge: Edge = {
+          id: `${connectingNodeId.current}-${newNode.id}`,
+          source: connectingNodeId.current,
+          target: newNode.id,
+        };
+
+        setEdges((eds) => addEdge(newEdge, eds));
+      }
+
+      connectingNodeId.current = null;
+    },
+    [reactFlowInstance, nodes.length, setNodes, setEdges, t]
+  );
+
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    setReactFlowInstance(instance);
+  }, []);
+
+  const addNewNode = useCallback(() => {
     const newNode: Node = {
-      id: `${nodes.length + 1}`,
-      data: { label: `Node ${nodes.length + 1}` },
+      id: `${Date.now()}`,
+      data: { label: t("reactFlow.nodeLabel", { number: nodes.length + 1 }) },
       position: { x: Math.random() * 500, y: Math.random() * 500 },
     };
     setNodes((nds) => [...nds, newNode]);
     return newNode;
-  };
+  }, [nodes.length, setNodes, t]);
 
   return (
     <div className="h-screen w-full relative">
       <div className="absolute top-4 left-4 z-10">
         <Card className="p-4">
-          <Button onClick={addNewNode}>Add Node</Button>
+          <Button onClick={addNewNode}>{t("reactFlow.addNode")}</Button>
         </Card>
       </div>
       <ReactFlow
@@ -109,6 +159,9 @@ export function FlowDemoCanvas({ saveData, loadData }: FlowDemoProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        onInit={onInit}
         fitView
       >
         <Background />
