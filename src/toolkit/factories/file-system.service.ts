@@ -81,10 +81,10 @@ export class FileSystemService {
       const entry = this.providers.splice(index, 1)[0];
       try {
         entry.onChangeUnsub?.dispose();
-      } catch {}
+      } catch { }
       try {
         entry.disposable.dispose();
-      } catch {}
+      } catch { }
     }
   }
 
@@ -101,6 +101,26 @@ export class FileSystemService {
     return entry?.provider;
   }
 
+  /**
+   * Check if a provider is registered for the given URI
+   */
+  hasProvider(uri: Uri): boolean {
+    return this.getProvider(uri) !== undefined;
+  }
+
+  /**
+   * Get detailed error message when provider is not found
+   */
+  private getProviderNotFoundError(uri: Uri): string {
+    const registeredProviders = this.providers.map(p =>
+      `${p.scheme}${p.authority ? `://${p.authority}` : ''} (id: ${p.id})`
+    ).join(', ');
+
+    return `No provider registered for URI '${uri.toString()}'. ` +
+      `Requested: scheme='${uri.scheme}', authority='${uri.authority}'. ` +
+      `Registered providers: [${registeredProviders || 'none'}]`;
+  }
+
   watch(
     uri: Uri,
     options: { recursive: boolean; excludes: string[] }
@@ -114,7 +134,7 @@ export class FileSystemService {
       }
       return provider.watch(uri, options);
     }
-    throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+    throw new Error(this.getProviderNotFoundError(uri));
   }
 
   async stat(uri: Uri): Promise<FileStat> {
@@ -123,7 +143,7 @@ export class FileSystemService {
       const result = await provider.stat(uri);
       return Promise.resolve(result);
     }
-    throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+    throw new Error(this.getProviderNotFoundError(uri));
   }
 
   async readDirectory(uri: Uri): Promise<[string, FileType][]> {
@@ -132,7 +152,7 @@ export class FileSystemService {
       const result = await provider.readDirectory(uri);
       return Array.isArray(result) ? result : Promise.resolve(result);
     }
-    throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+    throw new Error(this.getProviderNotFoundError(uri));
   }
 
   async createDirectory(uri: Uri): Promise<void> {
@@ -140,7 +160,7 @@ export class FileSystemService {
     if (provider) {
       await provider.createDirectory(uri);
     } else {
-      throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+      throw new Error(this.getProviderNotFoundError(uri));
     }
   }
 
@@ -150,7 +170,7 @@ export class FileSystemService {
       const result = await provider.readFile(uri);
       return result instanceof Uint8Array ? result : Promise.resolve(result);
     }
-    throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+    throw new Error(this.getProviderNotFoundError(uri));
   }
 
   async writeFile(
@@ -162,7 +182,7 @@ export class FileSystemService {
     if (provider) {
       await provider.writeFile(uri, content, options);
     } else {
-      throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+      throw new Error(this.getProviderNotFoundError(uri));
     }
   }
 
@@ -171,7 +191,7 @@ export class FileSystemService {
     if (provider) {
       await provider.delete(uri, options);
     } else {
-      throw new Error(`No provider registered for scheme '${uri.scheme}'`);
+      throw new Error(this.getProviderNotFoundError(uri));
     }
   }
 
@@ -184,7 +204,7 @@ export class FileSystemService {
     if (provider) {
       await provider.rename(oldUri, newUri, options);
     } else {
-      throw new Error(`No provider registered for scheme '${oldUri.scheme}'`);
+      throw new Error(this.getProviderNotFoundError(oldUri));
     }
   }
 }

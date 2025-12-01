@@ -93,6 +93,14 @@ export class SpaceFileSystemProviderProxy implements FileSystemProvider {
     if (uri.authority !== this.spaceId) {
       throw new Error(`Invalid space ID: ${uri.authority}`);
     }
+    
+    const stagedFiles = stagingService.getStagedFiles(this.spaceId);
+    const stagedFile = stagedFiles.find(f => f.uri === uri.toString());
+    
+    if (stagedFile && stagedFile.content !== undefined) {
+      return Promise.resolve(new TextEncoder().encode(stagedFile.content));
+    }
+    
     return this.provider.readFile(uri);
   }
 

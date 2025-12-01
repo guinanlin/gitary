@@ -8,31 +8,44 @@ export const AddFileSystemProviderForEachSpace = createPlugin({
   initilize(xbook) {
     // Use singleton services directly
 
-    spaceService.subscribeSpaces((spaces) => {
-      spaces.forEach(async (space) => {
-        const platform = spacePlatformRegistry.getPlatform(space.platform);
-        if (!platform) return;
+    spaceService.subscribeSpaces(async (spaces) => {
+      // Use Promise.all to ensure all providers are registered before continuing
+      await Promise.all(
+        spaces.map(async (space) => {
+          try {
+            const platform = spacePlatformRegistry.getPlatform(space.platform);
+            if (!platform) {
+              console.warn(`[FileSystemProvider] Platform not found for space ${space.id}: ${space.platform}`);
+              return;
+            }
 
-        const providerOrPromise = platform.getProvider({
-          accessToken: authService.getAnyAuthInfo(space.platform, space.owner)?.accessToken,
-          owner: space.owner,
-          repo: space.repo,
-        });
+            const providerOrPromise = platform.getProvider({
+              accessToken: authService.getAnyAuthInfo(space.platform, space.owner)?.accessToken,
+              owner: space.owner,
+              repo: space.repo,
+            });
 
-        const provider = providerOrPromise instanceof Promise 
-          ? await providerOrPromise 
-          : providerOrPromise;
+            const provider = providerOrPromise instanceof Promise
+              ? await providerOrPromise
+              : providerOrPromise;
 
-        const proxyProvider = new SpaceFileSystemProviderProxy(provider, space.id);
-        
-        xbook.fs.registerProvider({
-          id: `space-${space.id}`,
-          scheme: 'space',
-          provider: proxyProvider,
-          authority: space.id,
-          options: { overwrite: true },
-        });
-      });
+            const proxyProvider = new SpaceFileSystemProviderProxy(provider, space.id);
+
+            xbook.fs.registerProvider({
+              id: `space-${space.id}`,
+              scheme: 'space',
+              provider: proxyProvider,
+              authority: space.id,
+              options: { overwrite: true },
+            });
+
+            console.log(`[FileSystemProvider] Successfully registered provider for space: ${space.id}`);
+          } catch (error) {
+            console.error(`[FileSystemProvider] Failed to register provider for space ${space.id}:`, error);
+            // Continue with other spaces even if one fails
+          }
+        })
+      );
     });
   },
 });

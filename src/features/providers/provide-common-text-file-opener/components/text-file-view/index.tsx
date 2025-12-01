@@ -68,40 +68,64 @@ const LanguageMap: Record<string, string> = {
 
 export const TextFileView: React.FC<{
   uri: string;
-}> = ({ uri }) => {
+  value?: string;
+  onChange?: (content: string) => void;
+  onSave?: (content: string) => void;
+}> = ({ uri, value: externalValue, onChange: externalOnChange, onSave: externalOnSave }) => {
   const { t } = useTranslation();
   uri = uri.replace("::", ":/xxx.com");
   const [{ data, loading }] = useResource(() =>
-    xbook.fs
-      .readFile(Uri.parse(uri))
-      .then((content) => new TextDecoder().decode(content))
+    externalValue !== undefined
+      ? Promise.resolve(externalValue)
+      : xbook.fs
+          .readFile(Uri.parse(uri))
+          .then((content) => new TextDecoder().decode(content))
   );
   const suffix = uri.split(".").pop();
   
+  const currentValue = externalValue !== undefined ? externalValue : (data || "");
+  const isLoading = externalValue === undefined ? loading : false;
+  
   useEffect(() => {
-    if (!loading && data !== undefined) {
+    if (!isLoading && currentValue !== undefined && externalValue === undefined) {
       xbook.eventBus.emit(EventKeys.FileLoaded, { uri });
     }
-  }, [loading, data, uri]);
-  const htmlContentRef = React.useRef<string | null>(data || null);
+  }, [isLoading, currentValue, uri, externalValue]);
+  
+  const htmlContentRef = React.useRef<string | null>(currentValue || null);
+  
+  React.useEffect(() => {
+    htmlContentRef.current = currentValue;
+  }, [currentValue]);
+  
   const onSave = (content: string) => {
-    xbook.fs
-      .writeFile(Uri.parse(uri), new TextEncoder().encode(content), {
-        overwrite: true,
-        create: false,
-      })
-      .then(() => {
-        xbook.notificationService.success(t("file.saveSuccess"));
-      });
+    if (externalOnSave) {
+      externalOnSave(content);
+    } else {
+      xbook.fs
+        .writeFile(Uri.parse(uri), new TextEncoder().encode(content), {
+          overwrite: true,
+          create: false,
+        })
+        .then(() => {
+          xbook.notificationService.success(t("file.saveSuccess"));
+        });
+    }
   };
+  
+  const handleChange = (e: string) => {
+    htmlContentRef.current = e;
+    if (externalOnChange) {
+      externalOnChange(e);
+    }
+  };
+  
   return (
     <React.Suspense fallback={<div>{t("file.loadingEditor")}</div>}>
       <LazyCustomMonacoEditor
-        value={data || ""}
+        value={currentValue}
         language={(suffix && LanguageMap[suffix]) || "txt"}
-        onChange={(e) => {
-          htmlContentRef.current = e;
-        }}
+        onChange={handleChange}
         keyBindings={[
           {
             key: MonacoKeyMod.CtrlCmd | MonacoKeyCode.KeyS,

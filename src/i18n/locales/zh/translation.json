@@ -166,7 +166,38 @@
     "newMindMap": "新建思维导图",
     "excalidraw": "Excalidraw 画板",
     "drawio": "Draw.io 图表",
-    "reactFlow": "React Flow 流程图"
+    "reactFlow": "React Flow 流程图",
+    "makePPT": {
+      "name": "PPT 生成器",
+      "appTitle": "演示文稿生成器",
+      "appSubtitle": "AI 驱动的演示文稿生成工具",
+      "welcomeTitle": "欢迎使用演示文稿生成器",
+      "welcomeDesc": "将您的想法瞬间转化为演示文稿",
+      "chatAssistant": "AI 助手",
+      "chatWelcome": "你好！我可以帮你头脑风暴内容或为你的演示文稿提供设计改进建议。",
+      "chatPlaceholder": "询问想法...",
+      "theme": "主题",
+      "audience": "受众",
+      "tone": "语调",
+      "length": "长度",
+      "content": "内容 (Markdown)",
+      "lengthShort": "简短 (3-5 张)",
+      "lengthMedium": "中等 (5-8 张)",
+      "lengthLong": "较长 (8-12 张)",
+      "generatePresentation": "生成演示文稿",
+      "generate": "生成",
+      "generatingSlides": "正在生成幻灯片...",
+      "generating": "生成中...",
+      "downloadPPTX": "下载 PPTX",
+      "exportToGoogleSlides": "导出到 Google Slides",
+      "themes": {
+        "MODERN_DARK": "现代深色",
+        "MINIMAL_LIGHT": "简约浅色",
+        "CORPORATE_BLUE": "商务蓝色",
+        "CREATIVE_VIBRANT": "创意活力"
+      }
+    },
+    "newPPT": "新建演示文稿"
   },
   "globalChat": {
     "welcomeTitle": "我能为您做些什么？",

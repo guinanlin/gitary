@@ -15,13 +15,16 @@ import {
   ZenmarkEditor,
 } from "zenmark-editor";
 import { cn } from "@/toolkit/utils/shadcn-utils";
+import { spaceHelper } from "@/helpers/space.helper";
+import { t as i18nT } from "@/i18n/utils";
+import xbook from "xbook/index";
+import { Uri } from "@/toolkit/vscode/uri";
 
-const LazyCustomMonacoEditor = React.lazy(() =>
-  import("@/components/custom-monaco-editor").then((m) => ({
-    default: m.CustomMonacoEditor,
+const LazyTextFileView = React.lazy(() =>
+  import("@/features/providers/provide-common-text-file-opener/components/text-file-view").then((m) => ({
+    default: m.TextFileView,
   }))
 );
-import { MonacoKeyCode, MonacoKeyMod } from "@/monaco/keys";
 
 export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const { t } = useTranslation();
@@ -36,13 +39,6 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const [rightButtonContainerElement, setRightButtonContainerElement] = useState<HTMLElement | null>(null);
   const [isSourceMode, setIsSourceMode] = useState(false);
 
-  const handleMonacoChange = useCallback(
-    (newContent: string) => {
-      setContent(newContent);
-    },
-    [setContent]
-  );
-
   const handleZenmarkChange = useCallback(
     (newContent: string) => {
       setContent(newContent);
@@ -50,31 +46,18 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     [setContent]
   );
 
-  const monacoKeyBindings = useMemo(
-    () => [
-      {
-        key: MonacoKeyMod.CtrlCmd | MonacoKeyCode.KeyS,
-        action: () => {
-          flush();
-        },
-      },
-      {
-        key: MonacoKeyMod.CtrlCmd | MonacoKeyCode.Slash,
-        action: () => {
-          setIsSourceMode(false);
-        },
-      },
-    ],
-    [flush]
+  const handleSourceModeChange = useCallback(
+    (newContent: string) => {
+      setContent(newContent);
+    },
+    [setContent]
   );
 
-  const monacoOptions = useMemo(
-    () => ({
-      minimap: { enabled: false },
-      fontSize: 14,
-      wordWrap: "on" as const,
-    }),
-    []
+  const handleSourceModeSave = useCallback(
+    (content: string) => {
+      flush(content);
+    },
+    [flush]
   );
 
   const handleKeyDown = useCallback((event: {
@@ -419,6 +402,118 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     };
   }, [loading, content, isSourceMode, uri]);
 
+  const [isGeneratingPPT, setIsGeneratingPPT] = useState(false);
+
+  const handleGeneratePPT = useCallback(async () => {
+    if (isGeneratingPPT) {
+      return; // Prevent multiple clicks
+    }
+
+    setIsGeneratingPPT(true);
+    try {
+      const spaceId = spaceHelper.getSpaceIdFromUri(uri);
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const seconds = now.getSeconds();
+      const milliseconds = now.getMilliseconds();
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const fileName = `/${year}-${month}-${day}-${hours}${minutes}${seconds}-${milliseconds}-${randomSuffix}.ppt.md`;
+
+      const pptUriObj = spaceHelper.getUri(spaceId, fileName);
+      const pptUri = pptUriObj.toString();
+
+      // Wait for provider to be registered (max 3 seconds)
+      const maxWaitTime = 3000;
+      const checkInterval = 100;
+      let waited = 0;
+
+      while (!xbook.fs.hasProvider(pptUriObj) && waited < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waited += checkInterval;
+      }
+
+      // Final check
+      if (!xbook.fs.hasProvider(pptUriObj)) {
+        throw new Error(
+          `文件系统提供者未就绪。请稍后再试。\n` +
+          `Space ID: ${spaceId}\n` +
+          `如果问题持续存在,请尝试刷新页面。`
+        );
+      }
+
+      const pptContent = JSON.stringify({
+        markdown: content,
+        presentation: {
+          title: "",
+          slides: []
+        },
+        theme: "MINIMAL_LIGHT",
+        audience: "Professional Team",
+        tone: "Inspirational",
+        length: "medium"
+      }, null, 2);
+
+      console.log("[ZenmarkEditor] Writing PPT file:", pptUri);
+      await xbook.fs.writeFile(
+        Uri.parse(pptUri),
+        new TextEncoder().encode(pptContent),
+        {
+          create: true,
+          overwrite: true
+        }
+      );
+      console.log("[ZenmarkEditor] PPT file written successfully");
+
+      const getFileName = (uri: string) => {
+        return uri.split("/").pop() ?? "unknown";
+      };
+
+      const pageId = `make-ppt:${pptUri}`;
+      const pageTitle = `${i18nT("apps.makePPT.name")}:${getFileName(pptUri)}`;
+      
+      console.log("[ZenmarkEditor] Adding page:", { pageId, pageTitle, uri: pptUri });
+      console.log("[ZenmarkEditor] pageBox exists:", !!xbook.layoutService?.pageBox);
+      console.log("[ZenmarkEditor] addPage method exists:", typeof xbook.layoutService?.pageBox?.addPage);
+      
+      if (!xbook.layoutService?.pageBox) {
+        throw new Error("pageBox service is not available");
+      }
+      
+      if (typeof xbook.layoutService.pageBox.addPage !== 'function') {
+        throw new Error("pageBox.addPage is not a function");
+      }
+      
+      xbook.layoutService.pageBox.addPage({
+        id: pageId,
+        title: pageTitle,
+        viewData: {
+          type: "make-ppt",
+          props: { uri: pptUri },
+        },
+      });
+      
+      if (typeof xbook.layoutService.pageBox.showPage === 'function') {
+        xbook.layoutService.pageBox.showPage(pageId);
+        console.log("[ZenmarkEditor] Page shown:", pageId);
+      }
+      
+      console.log("[ZenmarkEditor] Page added successfully, current page list:", xbook.layoutService.pageBox.getPageList?.());
+
+      xbook.notificationService.success("Markdown 内容已发送到 PPT 应用");
+    } catch (error) {
+      console.error("[ZenmarkEditor] Failed to generate PPT:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      xbook.notificationService.error(`创建 PPT 失败：${errorMessage}`);
+    } finally {
+      setIsGeneratingPPT(false);
+    }
+  }, [content, uri, isGeneratingPPT]);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-0 h-full">
@@ -455,33 +550,33 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     </TabIconButton>
   );
 
-
   const generatePptButtonElement = (
     <button
-      onClick={() => {
-        console.log("当前 Markdown 文档内容：");
-        console.log("=".repeat(50));
-        console.log(content);
-        console.log("=".repeat(50));
-        console.log("文档 URI:", uri);
-      }}
+      onClick={handleGeneratePPT}
+      disabled={isGeneratingPPT}
       className={cn(
         "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
-        "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+        isGeneratingPPT
+          ? "cursor-not-allowed opacity-50"
+          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
       )}
-      title="生成PPT - 发送到 Gemini"
+      title={isGeneratingPPT ? "正在生成 PPT..." : "生成PPT - 发送到 Gemini"}
       style={{
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Presentation
-        className={cn(
-          "h-5 w-5 transition-transform duration-200",
-          "group-hover:scale-110"
-        )}
-      />
+      {isGeneratingPPT ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : (
+        <Presentation
+          className={cn(
+            "h-5 w-5 transition-transform duration-200",
+            "group-hover:scale-110"
+          )}
+        />
+      )}
     </button>
   );
 
@@ -539,12 +634,11 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
             {sourceModeToggleButtonElement}
           </div>
           <React.Suspense fallback={<div>{t("file.loadingEditor")}</div>}>
-            <LazyCustomMonacoEditor
+            <LazyTextFileView
+              uri={uri}
               value={content}
-              language="markdown"
-              onChange={handleMonacoChange}
-              keyBindings={monacoKeyBindings}
-              options={monacoOptions}
+              onChange={handleSourceModeChange}
+              onSave={handleSourceModeSave}
             />
           </React.Suspense>
         </div>

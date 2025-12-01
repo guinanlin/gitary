@@ -163,7 +163,38 @@
     "aiQuotes": "AI Quotes",
     "excalidraw": "Excalidraw Canvas",
     "drawio": "Draw.io Diagram",
-    "reactFlow": "React Flow Diagram"
+    "reactFlow": "React Flow Diagram",
+    "makePPT": {
+      "name": "PPT Generator",
+      "appTitle": "Presentation Generator",
+      "appSubtitle": "AI-Powered Presentation Generator",
+      "welcomeTitle": "Welcome to Presentation Generator",
+      "welcomeDesc": "Transform your ideas into presentations instantly",
+      "chatAssistant": "AI Assistant",
+      "chatWelcome": "Hello! I can help you brainstorm content or provide design improvement suggestions for your presentation.",
+      "chatPlaceholder": "Ask for ideas...",
+      "theme": "Theme",
+      "audience": "Audience",
+      "tone": "Tone",
+      "length": "Length",
+      "content": "Content (Markdown)",
+      "lengthShort": "Short (3-5 slides)",
+      "lengthMedium": "Medium (5-8 slides)",
+      "lengthLong": "Long (8-12 slides)",
+      "generatePresentation": "Generate Presentation",
+      "generate": "Generate",
+      "generatingSlides": "Generating Slides...",
+      "generating": "Generating...",
+      "downloadPPTX": "Download PPTX",
+      "exportToGoogleSlides": "Export to Google Slides",
+      "themes": {
+        "MODERN_DARK": "Modern Dark",
+        "MINIMAL_LIGHT": "Minimal Light",
+        "CORPORATE_BLUE": "Corporate Blue",
+        "CREATIVE_VIBRANT": "Creative Vibrant"
+      }
+    },
+    "newPPT": "New Presentation"
   },
   "globalChat": {
     "welcomeTitle": "How can I help you today?",

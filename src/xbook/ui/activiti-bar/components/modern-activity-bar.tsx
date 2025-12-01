@@ -38,7 +38,7 @@ export function ModernActivityBar({
     <TooltipProvider delayDuration={100}>
       <div
         className={cn(
-          "h-full bg-background flex flex-col transition-all duration-300 ease-in-out",
+          "h-full bg-muted flex flex-col transition-all duration-300 ease-in-out",
           "border-r border-border/40",
           isExpanded ? "w-[140px]" : "w-[52px]"
         )}
