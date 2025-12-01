@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/toolkit/utils/shadcn-utils";
@@ -66,6 +66,7 @@ export const GlobalSidecarProvider = ({
   const [contentVisible, setContentVisible] = useState(false);
   const [isZenmarkEditor, setIsZenmarkEditor] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "outline">("chat");
+  const newConversationTriggerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     return subscribeGlobalSidecarPanes((next) => {
@@ -255,7 +256,7 @@ export const GlobalSidecarProvider = ({
                         transitionDuration: `${CONTENT_FADE_DURATION}ms`,
                       }}
                     >
-                      <div className="flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-10 border-b border-border/40">
+                      <div className="flex items-center justify-between px-4 py-1 bg-gray-100 dark:bg-gray-800 backdrop-blur-md sticky top-0 z-10 border-b border-border/40 dark:border-gray-700">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
                           {activePane.icon && (
                             <div className="w-5 h-5 flex-shrink-0">
@@ -283,14 +284,31 @@ export const GlobalSidecarProvider = ({
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={closePane}
-                          className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors flex-shrink-0"
-                        >
-                          ×
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {activePaneId === "global-chat" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (newConversationTriggerRef.current) {
+                                  newConversationTriggerRef.current();
+                                }
+                              }}
+                              className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors flex-shrink-0"
+                              title="开启新对话"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={closePane}
+                            className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors flex-shrink-0"
+                          >
+                            ×
+                          </Button>
+                        </div>
                       </div>
                       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         {isZenmarkEditor && activePaneId === "global-chat" ? (
@@ -299,6 +317,9 @@ export const GlobalSidecarProvider = ({
                               <ActiveComponent
                                 {...activePaneProps}
                                 closePane={closePane}
+                                onNewConversation={(handler) => {
+                                  newConversationTriggerRef.current = handler;
+                                }}
                               />
                             )}
                             {activeTab === "outline" && (
@@ -309,47 +330,15 @@ export const GlobalSidecarProvider = ({
                           <ActiveComponent
                             {...activePaneProps}
                             closePane={closePane}
+                            onNewConversation={activePaneId === "global-chat" ? (handler) => {
+                              newConversationTriggerRef.current = handler;
+                            } : undefined}
                           />
                         )}
                       </div>
                     </div>
                   ) : null}
                 </div>
-
-                {!isMobile && !isZenmarkEditor && open && (
-                  <div className="w-[52px] flex flex-col items-center py-6 gap-4 border-l border-border/40 bg-background/50 backdrop-blur-sm">
-                    {orderedPanes.map((pane) => {
-                      const Icon = pane.icon ?? MessageCircle;
-                      const active = pane.id === activePaneId && open;
-                      return (
-                        <button
-                          key={pane.id}
-                          onClick={() => {
-                            if (active) {
-                              closePane();
-                            } else {
-                              openPane(pane.id);
-                            }
-                          }}
-                          className={cn(
-                            "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
-                            active
-                              ? "bg-muted text-foreground"
-                              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                          )}
-                          title={pane.title}
-                        >
-                          <Icon
-                            className={cn(
-                              "h-5 w-5 transition-transform duration-200",
-                              active ? "scale-100" : "group-hover:scale-110"
-                            )}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             )}
           </>

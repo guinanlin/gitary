@@ -121,7 +121,17 @@ export const provideAppMeetingMinutes = createPlugin({
         {
           id: "new-meeting-minutes",
           label: t("apps.newMeetingMinutes"),
-          defaultFileName: "会议纪要.meeting.md",
+          defaultFileName: () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const secondsInDay = hours * 3600 + minutes * 60 + seconds;
+            return `${year}-${month}-${day}-${secondsInDay}.meeting.md`;
+          },
           initialContent: MEETING_MINUTES_TEMPLATE,
           icon: "AiOutlineFileMarkdown",
         },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { stagingService, StagedFile } from "@/services/staging.service";
 import { spaceHelper } from "@/helpers/space.helper";
@@ -36,13 +36,60 @@ export function GitCommitPanel({ spaceId, open, onOpenChange }: GitCommitPanelPr
   const [branch, setBranch] = useState("main");
   const [isCommitting, setIsCommitting] = useState(false);
   const [branches, setBranches] = useState<string[]>([]);
+  const hasInitializedMessage = useRef(false);
+
+  const generateInitialCommitMessage = (files: StagedFile[]): string => {
+    if (files.length === 0) return "";
+
+    const fileCount = files.length;
+    const addCount = files.filter(f => f.operation === "add").length;
+    const updateCount = files.filter(f => f.operation === "update").length;
+    const deleteCount = files.filter(f => f.operation === "delete").length;
+
+    const parts: string[] = [];
+
+    if (addCount > 0) {
+      parts.push(`新增 ${addCount} 个文件`);
+    }
+    if (updateCount > 0) {
+      parts.push(`修改 ${updateCount} 个文件`);
+    }
+    if (deleteCount > 0) {
+      parts.push(`删除 ${deleteCount} 个文件`);
+    }
+
+    let message = parts.join("，");
+
+    if (fileCount <= 5) {
+      const fileNames = files.map(f => {
+        const fileName = f.path.split("/").pop() || f.path;
+        const operationText = f.operation === "add" ? "新增" : f.operation === "delete" ? "删除" : "修改";
+        return `${operationText} ${fileName}`;
+      });
+      message += "\n\n涉及文件：\n" + fileNames.join("\n");
+    } else {
+      const fileNames = files.slice(0, 5).map(f => f.path.split("/").pop() || f.path);
+      message += `\n\n涉及文件：\n${fileNames.join("\n")}\n... 等共 ${fileCount} 个文件`;
+    }
+
+    return message;
+  };
 
   useEffect(() => {
-    if (!open || !spaceId) return;
+    if (!open || !spaceId) {
+      hasInitializedMessage.current = false;
+      return;
+    }
 
     const updateStagedFiles = () => {
       const files = stagingService.getStagedFiles(spaceId);
       setStagedFiles(files);
+      
+      if (files.length > 0 && !hasInitializedMessage.current) {
+        const initialMessage = generateInitialCommitMessage(files);
+        setCommitMessage(initialMessage);
+        hasInitializedMessage.current = true;
+      }
     };
 
     updateStagedFiles();
@@ -491,6 +538,7 @@ export function GitCommitPanel({ spaceId, open, onOpenChange }: GitCommitPanelPr
       xbook.notificationService.success(`Successfully committed ${stagedFiles.length} file(s)`);
       onOpenChange(false);
       setCommitMessage("");
+      hasInitializedMessage.current = false;
     } catch (error: any) {
       console.error("[GitCommitPanel] Commit failed:", error);
       const errorMessage = error?.response?.data?.message || error?.message || String(error);

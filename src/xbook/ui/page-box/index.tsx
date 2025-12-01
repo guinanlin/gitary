@@ -31,8 +31,8 @@ import { componentService } from "../componentService";
 import { Tab, TabIconButton } from "../components/tab";
 import { BottomScrollbar } from "./components/bottom-scrollbar";
 import { useGlobalSidecar } from "xbook/global-sidecar/global-sidecar-context";
-import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { cn } from "@/toolkit/utils/shadcn-utils";
+import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 
 export const createPageBox = (): {
   proxy: ReturnType<typeof PageBoxController.create>;
@@ -258,34 +258,6 @@ export const createPageBox = (): {
                 flexGrow={0}
                 className="tab-bar-right-extra"
               >
-                <button
-                  onClick={() => {
-                    if (aiAssistantActive) {
-                      closePane();
-                    } else {
-                      openPane("global-chat");
-                    }
-                  }}
-                  className={cn(
-                    "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
-                    aiAssistantActive
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                  )}
-                  title="AI Assistant"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AIAssistantIcon
-                    className={cn(
-                      "h-5 w-5 transition-transform duration-200",
-                      aiAssistantActive ? "scale-100" : "group-hover:scale-110"
-                    )}
-                  />
-                </button>
                 <PageActions />
                 {pageList.length > tabBarCapacity && (
                   <Menu>
@@ -314,6 +286,34 @@ export const createPageBox = (): {
                     </MenuList>
                   </Menu>
                 )}
+                <button
+                  onClick={() => {
+                    if (aiAssistantActive) {
+                      closePane();
+                    } else {
+                      openPane("global-chat");
+                    }
+                  }}
+                  className={cn(
+                    "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
+                    aiAssistantActive
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  )}
+                  title="AI Assistant"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AIAssistantIcon
+                    className={cn(
+                      "h-5 w-5 transition-transform duration-200",
+                      aiAssistantActive ? "scale-100" : "group-hover:scale-110"
+                    )}
+                  />
+                </button>
               </Flex>
             </>
           </>

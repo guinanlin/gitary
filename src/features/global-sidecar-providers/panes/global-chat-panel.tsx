@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, Square, Copy, Check } from "lucide-react";
+import { ArrowUp, Square, Copy, Check, Plus } from "lucide-react";
 import { useColorMode } from "@chakra-ui/react";
 import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { Button } from "@/components/ui/button";
@@ -145,7 +145,12 @@ function convertUIMessageToAIMessage(message: UIMessage): Array<any> {
   return messages;
 }
 
-export const GlobalChatPanel = () => {
+interface GlobalChatPanelProps {
+  closePane?: () => void;
+  onNewConversation?: (handler: () => void) => void;
+}
+
+export const GlobalChatPanel = ({ closePane, onNewConversation }: GlobalChatPanelProps = {}) => {
   const { t } = useTranslation();
   const { colorMode } = useColorMode();
   const [input, setInput] = useState("");
@@ -617,6 +622,22 @@ export const GlobalChatPanel = () => {
     }
   }, []);
 
+  const startNewConversation = useCallback(() => {
+    abortAgentRun();
+    setMessages([]);
+    setInput("");
+    chatCacheService.setMessages(conversationId, [], currentSpaceId);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+    }
+  }, [conversationId, currentSpaceId, abortAgentRun]);
+
+  useEffect(() => {
+    if (onNewConversation) {
+      onNewConversation(startNewConversation);
+    }
+  }, [onNewConversation, startNewConversation]);
+
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const target = e.target;
@@ -743,7 +764,7 @@ export const GlobalChatPanel = () => {
 
       <div className="flex-shrink-0 border-t border-border bg-background z-10">
         <div className="max-w-3xl mx-auto w-full p-4">
-          <div className="relative flex items-end gap-2 rounded-[26px] bg-background border border-border p-2">
+          <div className="relative flex items-end gap-2 rounded-md bg-background border border-border p-2">
             <Textarea
               ref={textareaRef}
               value={input}
@@ -779,10 +800,10 @@ export const GlobalChatPanel = () => {
                 aiProviderStore.setProvider(value as AIProviderName);
               }}
             >
-              <SelectTrigger className="h-6 w-[130px] text-[10px] px-1.5 py-0.5 border-border/50 bg-background">
+              <SelectTrigger className="h-6 w-[100px] text-[10px] px-1.5 py-0.5 border-border/50 bg-background">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[100] min-w-[130px]">
+              <SelectContent className="z-[100] min-w-[100px]">
                 {PROVIDER_OPTIONS.map((option) => (
                   <SelectItem
                     key={option.value}
@@ -794,10 +815,6 @@ export const GlobalChatPanel = () => {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-muted-foreground/40 font-medium tracking-wide uppercase flex-1 text-right">
-              {t("globalChat.disclaimer") ||
-                "AI can make mistakes. Check important info."}
-            </p>
           </div>
         </div>
       </div>

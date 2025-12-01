@@ -20,8 +20,9 @@ export type FileTemplate = {
   /**
    * Default file name when creating this template.
    * Users can still rename before creation.
+   * Can be a string or a function that returns a string.
    */
-  defaultFileName: string;
+  defaultFileName: string | (() => string);
   /**
    * Optional initial file content.
    * If omitted, an empty file will be created.

@@ -22,16 +22,16 @@ export default createFolderTreePlugin({
 
     const templateHandlers = new Map<
       string,
-      {
-        openerId: string;
-        template: {
-          id: string;
-          label: string;
-          defaultFileName: string;
-          initialContent?: unknown;
-          icon?: string;
-        };
-      }
+        {
+          openerId: string;
+          template: {
+            id: string;
+            label: string;
+            defaultFileName: string | (() => string);
+            initialContent?: unknown;
+            icon?: string;
+          };
+        }
     >();
 
     const registerTemplateMenu = (opener: {
@@ -39,7 +39,7 @@ export default createFolderTreePlugin({
       templates?: {
         id: string;
         label: string;
-        defaultFileName: string;
+        defaultFileName: string | (() => string);
         initialContent?: unknown;
         icon?: string;
       }[];
@@ -78,9 +78,13 @@ export default createFolderTreePlugin({
 
           const childId = nanoid();
 
+          const defaultFileName = typeof template.defaultFileName === 'function' 
+            ? template.defaultFileName() 
+            : template.defaultFileName;
+
           serviceBus.invoke(TreeServicePoints.EditInputNodeName, {
             parentId,
-            defaultName: template.defaultFileName,
+            defaultName: defaultFileName,
             nodeType: TreeNodeTypeEnum.File,
             callback: async (name: string) => {
               const path = joinPath(parentNode.path!, name);

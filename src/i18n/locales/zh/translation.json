@@ -172,7 +172,6 @@
     "welcomeTitle": "我能为您做些什么？",
     "welcomeDesc": "我是你的全局 AI 助手。无论是代码问题、创意写作还是日常闲聊，我都乐意效劳。",
     "placeholder": "输入消息...",
-    "disclaimer": "AI 可能会出错，请核对重要信息。",
     "copyContent": "复制内容",
     "userQuestion": "用户问题",
     "errorOccurred": "出错了：{{message}}",

@@ -169,7 +169,6 @@
     "welcomeTitle": "How can I help you today?",
     "welcomeDesc": "I'm your global AI assistant. Whether it's coding questions, creative writing, or casual chat, I'm here to help.",
     "placeholder": "Type a message...",
-    "disclaimer": "AI can make mistakes. Check important info.",
     "copyContent": "Copy content",
     "userQuestion": "User Question",
     "errorOccurred": "Error: {{message}}",

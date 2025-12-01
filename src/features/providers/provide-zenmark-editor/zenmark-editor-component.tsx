@@ -14,8 +14,6 @@ import {
   matchesKeybinding,
   ZenmarkEditor,
 } from "zenmark-editor";
-import { useGlobalSidecar } from "@/features/global-sidecar-providers";
-import { AIAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { cn } from "@/toolkit/utils/shadcn-utils";
 
 const LazyCustomMonacoEditor = React.lazy(() =>
@@ -36,7 +34,6 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const buttonContainerRef = useRef<HTMLDivElement | null>(null);
   const rightButtonContainerRef = useRef<HTMLDivElement | null>(null);
   const [rightButtonContainerElement, setRightButtonContainerElement] = useState<HTMLElement | null>(null);
-  const { open, activePaneId, openPane, closePane } = useGlobalSidecar();
   const [isSourceMode, setIsSourceMode] = useState(false);
 
   const handleMonacoChange = useCallback(
@@ -458,37 +455,6 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     </TabIconButton>
   );
 
-  const aiAssistantActive = activePaneId === "global-chat" && open;
-  const aiAssistantButton = rightButtonContainerElement ? (
-    <button
-      onClick={() => {
-        if (aiAssistantActive) {
-          closePane();
-        } else {
-          openPane("global-chat");
-        }
-      }}
-      className={cn(
-        "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
-        aiAssistantActive
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-      )}
-      title="AI Assistant"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <AIAssistantIcon
-        className={cn(
-          "h-5 w-5 transition-transform duration-200",
-          aiAssistantActive ? "scale-100" : "group-hover:scale-110"
-        )}
-      />
-    </button>
-  ) : null;
 
   const sourceModeToggleButtonElement = (
     <button
@@ -567,7 +533,6 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       {rightButtonContainerElement && (
         <>
           {createPortal(sourceModeToggleButtonElement, rightButtonContainerElement)}
-          {!isSourceMode && createPortal(aiAssistantButton, rightButtonContainerElement)}
         </>
       )}
     </div>

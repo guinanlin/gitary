@@ -44,8 +44,17 @@ export const Tab: FC<TabProps> = ({
 }) => {
   const classList: string[] = ["tab", "hover-action"];
   if (isActive) classList.push("active");
+  
+  const getDisplayTitle = (fullTitle: string, maxLength: number = 20) => {
+    const extracted = fullTitle.split("::").splice(-1)[0].split("/").splice(-1)[0];
+    if (extracted.length <= maxLength) {
+      return extracted;
+    }
+    return extracted.slice(0, maxLength) + "…";
+  };
+  
   const shortTitle = useMemo(
-    () => title.split("::").splice(-1)[0].split("/").splice(-1)[0],
+    () => getDisplayTitle(title, 20),
     [title]
   );
   const [open, setOpen] = useState(false);
@@ -101,47 +110,52 @@ export const Tab: FC<TabProps> = ({
         {shortTitle}
       </Box>
       {(stretch || width || minWidth) && <Box flexGrow={1} />}
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="p-0 h-auto min-w-0 hover:bg-transparent hover-visible inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
+      {actions.length > 0 && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "p-0 h-auto min-w-0 hover:bg-transparent hover-visible inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+                open && "!visible"
+              )}
+              style={open ? { visibility: 'visible' } : undefined}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <Icon as={AiOutlineMore} />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent 
+            className="w-48 p-1 z-[10000]" 
+            align="start" 
+            side="right"
           >
-            <Icon as={AiOutlineMore} />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-48 p-1" 
-          align="start" 
-          side="right"
-        >
-          <div className="grid gap-1">
-            {actions.map((action, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start gap-2 px-2 py-1.5 h-auto font-normal",
-                  action.className
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  action.onClick();
-                  setOpen(false);
-                }}
-              >
-                {action.icon && <Icon as={action.icon} className="h-4 w-4" />}
-                <span>{action.label}</span>
-              </Button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+            <div className="grid gap-1">
+              {actions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start gap-2 px-2 py-1.5 h-auto font-normal",
+                    action.className
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    action.onClick();
+                    setOpen(false);
+                  }}
+                >
+                  {action.icon && <Icon as={action.icon} className="h-4 w-4" />}
+                  <span>{action.label}</span>
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
       <Icon
         flexShrink={0}
         className="hover-visible"
