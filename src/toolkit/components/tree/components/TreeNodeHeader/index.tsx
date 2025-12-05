@@ -35,7 +35,7 @@ export const TreeNodeHeader = ({
     viewSystem.getDefaultViewState({ id: node.id });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { handleNodeClick, handleKeyDown } = useNodeEventHandlers(
+  const { handleNodeClick, handleNodeDoubleClick, handleKeyDown } = useNodeEventHandlers(
     node,
     parentNode
   );
@@ -81,6 +81,7 @@ export const TreeNodeHeader = ({
           }
         )}
         onClick={handleNodeClick}
+        onDoubleClick={handleNodeDoubleClick}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         position="relative" // 添加这行

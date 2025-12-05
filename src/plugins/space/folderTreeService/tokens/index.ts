@@ -13,6 +13,10 @@ export const TreeEventKeys = {
     node: TreeDataNode<FolderTreeNode>;
     event?: React.MouseEvent<HTMLDivElement>;
   }>("node::click"),
+  NodeDoubleClick: typedKey<{
+    node: TreeDataNode<FolderTreeNode>;
+    event?: React.MouseEvent<HTMLDivElement>;
+  }>("node::doubleClick"),
   AddMarkdownAt: typedKey<{
     node: TreeDataNode<FolderTreeNode>;
   }>("addMarkdownAt"),
@@ -23,6 +27,9 @@ export const TreeEventKeys = {
   AddFolderAt: typedKey<{
     node: TreeDataNode<FolderTreeNode>;
   }>("addFolderAt"),
+  UploadFileAt: typedKey<{
+    node: TreeDataNode<FolderTreeNode>;
+  }>("uploadFileAt"),
   DeleteNode: typedKey<{
     node: TreeDataNode<FolderTreeNode>;
     event: Event;

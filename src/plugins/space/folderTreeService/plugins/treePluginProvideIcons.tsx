@@ -14,6 +14,7 @@ import {
   Brain,
   Network,
   GitBranch,
+  Upload,
 } from "lucide-react";
 
 export default createTreeHelper<FolderTreeNode>().createPlugin({
@@ -37,5 +38,6 @@ export default createTreeHelper<FolderTreeNode>().createPlugin({
     renderer.register("Brain", Brain);
     renderer.register("Network", Network);
     renderer.register("GitBranch", GitBranch);
+    renderer.register("AiOutlineUpload", Upload);
   },
 });

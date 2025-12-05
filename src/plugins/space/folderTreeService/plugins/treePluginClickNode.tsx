@@ -21,5 +21,15 @@ export default createTreePlugin<FolderTreeNode>({
         }
       }
     );
+    eventBus.on(
+      TreeEventKeys.NodeDoubleClick,
+      async ({ node }: { node: FolderTreeNode }) => {
+        if (node.id === "root" || node.type === TreeNodeTypeEnum.Dir) {
+          return;
+        }
+        treeService.focusNode(node.id);
+        treeService.openNode(node.id);
+      }
+    );
   },
 });

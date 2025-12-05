@@ -2,7 +2,7 @@ import { useDocument } from "@/hooks/use-document";
 import { TabIconButton } from "@/xbook/ui/components/tab";
 import { CommandKeys } from "xbook/constants/tokens";
 import { commandService } from "xbook/services/commandService";
-import { Loader2, Presentation } from "lucide-react";
+import { Loader2, Presentation, Sparkles } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -19,6 +19,12 @@ import { spaceHelper } from "@/helpers/space.helper";
 import { t as i18nT } from "@/i18n/utils";
 import xbook from "xbook/index";
 import { Uri } from "@/toolkit/vscode/uri";
+import { AIService } from "@/services/ai/ai-service";
+import { streamText } from "ai";
+import { getAIModel } from "@dty/ai-assistant-core";
+import { aiProviderStore } from "@/services/ai/ai-provider.store";
+import { PROVIDER_CONFIGS } from "@/services/ai/providers";
+import type { ProviderConfigs } from "@dty/ai-assistant-core";
 
 const LazyTextFileView = React.lazy(() =>
   import("@/features/providers/provide-common-text-file-opener/components/text-file-view").then((m) => ({
@@ -38,6 +44,9 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const rightButtonContainerRef = useRef<HTMLDivElement | null>(null);
   const [rightButtonContainerElement, setRightButtonContainerElement] = useState<HTMLElement | null>(null);
   const [isSourceMode, setIsSourceMode] = useState(false);
+  const headerLeftContainerRef = useRef<HTMLDivElement | null>(null);
+  const [headerLeftElement, setHeaderLeftElement] = useState<HTMLElement | null>(null);
+  const [isBeautifying, setIsBeautifying] = useState(false);
 
   const handleZenmarkChange = useCallback(
     (newContent: string) => {
@@ -176,6 +185,31 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
           toolbar.appendChild(rightButtonContainerRef.current);
         }
         setRightButtonContainerElement(rightButtonContainerRef.current);
+
+        const headerLeft = toolbar.querySelector(
+          ".zenmark-editor__header-left"
+        ) as HTMLElement | null;
+
+        if (headerLeft) {
+          if (!headerLeftContainerRef.current) {
+            const container = document.createElement("div");
+            container.style.display = "flex";
+            container.style.alignItems = "center";
+            container.style.height = "100%";
+            container.style.flexShrink = "0";
+            container.className = "zenmark-editor-beautify-button-container";
+            headerLeft.appendChild(container);
+            headerLeftContainerRef.current = container;
+            console.log("[ZenmarkEditor] Beautify button container created and appended to header-left", container);
+          } else if (headerLeftContainerRef.current.parentNode !== headerLeft) {
+            headerLeft.appendChild(headerLeftContainerRef.current);
+          }
+          setHeaderLeftElement(headerLeftContainerRef.current);
+          console.log("[ZenmarkEditor] headerLeftElement set:", headerLeftContainerRef.current);
+        } else {
+          console.log("[ZenmarkEditor] header-left element not found in toolbar");
+        }
+
         return true;
       }
       return false;
@@ -213,6 +247,11 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
         rightButtonContainerRef.current = null;
       }
       setRightButtonContainerElement(null);
+      if (headerLeftContainerRef.current && headerLeftContainerRef.current.parentNode) {
+        headerLeftContainerRef.current.parentNode.removeChild(headerLeftContainerRef.current);
+        headerLeftContainerRef.current = null;
+      }
+      setHeaderLeftElement(null);
     };
   }, [loading, content]);
 
@@ -514,6 +553,74 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     }
   }, [content, uri, isGeneratingPPT]);
 
+  const handleBeautifyMarkdown = useCallback(async () => {
+    if (isBeautifying || !content.trim()) {
+      return;
+    }
+
+    setIsBeautifying(true);
+    try {
+      const currentProvider = aiProviderStore.getProvider();
+      const model = getAIModel(currentProvider, PROVIDER_CONFIGS as ProviderConfigs);
+
+      const systemPrompt = `你是一个专业的 Markdown 格式化助手。你的任务是将用户提供的 Markdown 内容进行美化和格式化。
+
+要求：
+1. 保持原始内容的语义和结构不变
+2. 优化 Markdown 语法，确保格式规范
+3. 统一标题层级，确保层次清晰（# ## ###）
+4. 规范列表格式（统一使用 - 或 *），规范嵌套
+5. 优化代码块格式，确保语言标识正确
+6. 确保链接和图片格式正确
+7. 优化段落间距和换行，保持合理间距
+8. 处理转义字符和特殊符号
+9. 保持原有的语言（中文/英文），不翻译
+10. 不要添加额外的内容，只进行格式化
+
+输出要求：
+- 只返回格式化后的 Markdown 内容
+- 不要添加任何解释性文字
+- 不要使用代码块包裹输出`;
+
+      const userPrompt = `请美化以下 Markdown 内容：
+
+\`\`\`markdown
+${content}
+\`\`\``;
+
+      const result = streamText({
+        model,
+        system: systemPrompt,
+        prompt: userPrompt,
+      });
+
+      let beautifiedContent = "";
+      for await (const chunk of result.textStream) {
+        beautifiedContent += chunk;
+      }
+
+      let finalContent = beautifiedContent.trim();
+      if (finalContent.startsWith("```markdown")) {
+        finalContent = finalContent.replace(/^```markdown\n?/, "").replace(/\n?```$/, "");
+      } else if (finalContent.startsWith("```")) {
+        finalContent = finalContent.replace(/^```\n?/, "").replace(/\n?```$/, "");
+      }
+
+      if (finalContent) {
+        setContent(finalContent);
+        xbook.notificationService.success("Markdown 美化完成");
+      } else {
+        throw new Error("AI 返回的内容为空");
+      }
+    } catch (error) {
+      console.error("[ZenmarkEditor] Failed to beautify markdown:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      xbook.notificationService.error(`美化失败：${errorMessage}`);
+    } finally {
+      setIsBeautifying(false);
+    }
+  }, [content, isBeautifying, setContent]);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-0 h-full">
@@ -609,6 +716,40 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
     </button>
   );
 
+  const beautifyButtonElement = (
+    <button
+      onClick={handleBeautifyMarkdown}
+      disabled={isBeautifying || !content.trim()}
+      className={cn(
+        "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out",
+        isBeautifying || !content.trim()
+          ? "cursor-not-allowed opacity-50"
+          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+      )}
+      title={isBeautifying ? "正在美化中..." : "美化 Markdown - 使用 AI 格式化"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "40px",
+        height: "40px",
+        minWidth: "40px",
+        minHeight: "40px",
+      }}
+    >
+      {isBeautifying ? (
+        <Loader2 className="h-5 w-5 animate-spin text-current" />
+      ) : (
+        <Sparkles
+          className={cn(
+            "h-5 w-5 transition-transform duration-200 text-current",
+            "group-hover:scale-110"
+          )}
+        />
+      )}
+    </button>
+  );
+
   const sourceModeToggleButton = rightButtonContainerElement
     ? sourceModeToggleButtonElement
     : null;
@@ -659,6 +800,7 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
           {createPortal(sourceModeToggleButtonElement, rightButtonContainerElement)}
         </>
       )}
+      {!isSourceMode && headerLeftElement && createPortal(beautifyButtonElement, headerLeftElement)}
     </div>
   );
 };

@@ -12,11 +12,17 @@ export const useNodeEventHandlers = (
     eventBus.emit(TreeEventKeys.NodeClick, { node, event });
   };
 
+  const handleNodeDoubleClick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    eventBus.emit(TreeEventKeys.NodeDoubleClick, { node, event });
+  };
+
   const handleKeyDown = (event) => {
     if (event.code.toLowerCase() === "enter") {
       eventBus.emit(TreeEventKeys.KeydownEnter, { node, event });
     }
   };
 
-  return { handleNodeClick, handleKeyDown };
+  return { handleNodeClick, handleNodeDoubleClick, handleKeyDown };
 };

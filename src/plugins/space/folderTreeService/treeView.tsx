@@ -48,6 +48,7 @@ import { treePluginForIndexedDbSpace } from "@/plugins/space/folderTreeService/p
 import treePluginDragAndDrop from "@/plugins/space/folderTreeService/plugins/treePluginDragAndDrop";
 import treePluginCopyFilePath from "@/plugins/space/folderTreeService/plugins/treePluginCopyFilePath";
 import treePluginOpenWith from "@/plugins/space/folderTreeService/plugins/treePluginOpenWith";
+import treePluginUploadFile from "@/plugins/space/folderTreeService/plugins/treePluginUploadFile";
 import treePluginAddFileFromTemplate from "@/plugins/space/folderTreeService/plugins/treePluginAddFileFromTemplate";
 
 const TreeView = ({ space }: { space: SpaceDef }) => {
@@ -197,6 +198,7 @@ const TreeView = ({ space }: { space: SpaceDef }) => {
                 },
               }),
               treePluginAddFileFromTemplate(),
+              treePluginUploadFile(),
               treePluginCopyFilePath(),
               treePluginDeleteNode({
                 deletable: ({ node }) => {

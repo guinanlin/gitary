@@ -151,7 +151,18 @@
     "renameFolderNotSupported": "暂不支持重命名文件夹",
     "notFound": "未找到",
     "directory": "目录",
-    "openWith": "使用 {{name}} 打开"
+    "openWith": "使用 {{name}} 打开",
+    "uploadFile": "上传文件",
+    "uploadFileTitle": "上传文件",
+    "dragFilesHere": "拖拽文件到这里，或按 Ctrl+V 粘贴",
+    "filesToUpload": "待上传文件",
+    "uploading": "上传中...",
+    "uploadSuccess": "上传成功",
+    "uploadFailed": "上传失败",
+    "fileTooLarge": "文件过大，最大支持 100MB",
+    "fileExists": "文件已存在，是否覆盖？",
+    "noFilesSelected": "请选择要上传的文件",
+    "selectFile": "选择文件"
   },
   "apps": {
     "zenNotes": "禅意笔记",
