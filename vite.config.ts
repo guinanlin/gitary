@@ -61,7 +61,7 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    minify: false,
+    minify: "esbuild",
     outDir: "dist/",
     rollupOptions: {
       input: {
