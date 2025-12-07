@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { MessageCircle, Plus } from "lucide-react";
+import { MessageCircle, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/toolkit/utils/shadcn-utils";
@@ -264,9 +264,9 @@ export const GlobalSidecarProvider = ({
                             </div>
                           )}
                           {isZenmarkEditor && activePaneId === "global-chat" ? (
-                            <Tabs 
-                              value={activeTab} 
-                              onValueChange={(v) => setActiveTab(v as "chat" | "outline")} 
+                            <Tabs
+                              value={activeTab}
+                              onValueChange={(v) => setActiveTab(v as "chat" | "outline")}
                               className="flex-1 min-w-0"
                             >
                               <TabsList className="h-8">
@@ -314,26 +314,38 @@ export const GlobalSidecarProvider = ({
                         {isZenmarkEditor && activePaneId === "global-chat" ? (
                           <>
                             {activeTab === "chat" && (
-                              <ActiveComponent
-                                {...activePaneProps}
-                                closePane={closePane}
-                                onNewConversation={(handler) => {
-                                  newConversationTriggerRef.current = handler;
-                                }}
-                              />
+                              <Suspense fallback={
+                                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                  <Loader2 className="h-6 w-6 animate-spin" />
+                                </div>
+                              }>
+                                <ActiveComponent
+                                  {...activePaneProps}
+                                  closePane={closePane}
+                                  onNewConversation={(handler) => {
+                                    newConversationTriggerRef.current = handler;
+                                  }}
+                                />
+                              </Suspense>
                             )}
                             {activeTab === "outline" && (
                               <MarkdownOutlinePanel />
                             )}
                           </>
                         ) : (
-                          <ActiveComponent
-                            {...activePaneProps}
-                            closePane={closePane}
-                            onNewConversation={activePaneId === "global-chat" ? (handler) => {
-                              newConversationTriggerRef.current = handler;
-                            } : undefined}
-                          />
+                          <Suspense fallback={
+                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                              <Loader2 className="h-6 w-6 animate-spin" />
+                            </div>
+                          }>
+                            <ActiveComponent
+                              {...activePaneProps}
+                              closePane={closePane}
+                              onNewConversation={activePaneId === "global-chat" ? (handler) => {
+                                newConversationTriggerRef.current = handler;
+                              } : undefined}
+                            />
+                          </Suspense>
                         )}
                       </div>
                     </div>

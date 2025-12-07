@@ -19,6 +19,7 @@ import { spaceHelper } from "@/helpers/space.helper";
 import { t as i18nT } from "@/i18n/utils";
 import xbook from "xbook/index";
 import { Uri } from "@/toolkit/vscode/uri";
+import { openerService } from "@/services/opener.service";
 import { AIService } from "@/services/ai/ai-service";
 import { streamText } from "ai";
 import { getAIModel } from "@dty/ai-assistant-core";
@@ -509,40 +510,13 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
       );
       console.log("[ZenmarkEditor] PPT file written successfully");
 
-      const getFileName = (uri: string) => {
-        return uri.split("/").pop() ?? "unknown";
-      };
+      const opener = openerService.getOpeners().find((o) => o.id === "make-ppt");
+      if (!opener) {
+        throw new Error("make-ppt opener 未找到，请确保插件已正确加载");
+      }
 
-      const pageId = `make-ppt:${pptUri}`;
-      const pageTitle = `${i18nT("apps.makePPT.name")}:${getFileName(pptUri)}`;
-      
-      console.log("[ZenmarkEditor] Adding page:", { pageId, pageTitle, uri: pptUri });
-      console.log("[ZenmarkEditor] pageBox exists:", !!xbook.layoutService?.pageBox);
-      console.log("[ZenmarkEditor] addPage method exists:", typeof xbook.layoutService?.pageBox?.addPage);
-      
-      if (!xbook.layoutService?.pageBox) {
-        throw new Error("pageBox service is not available");
-      }
-      
-      if (typeof xbook.layoutService.pageBox.addPage !== 'function') {
-        throw new Error("pageBox.addPage is not a function");
-      }
-      
-      xbook.layoutService.pageBox.addPage({
-        id: pageId,
-        title: pageTitle,
-        viewData: {
-          type: "make-ppt",
-          props: { uri: pptUri },
-        },
-      });
-      
-      if (typeof xbook.layoutService.pageBox.showPage === 'function') {
-        xbook.layoutService.pageBox.showPage(pageId);
-        console.log("[ZenmarkEditor] Page shown:", pageId);
-      }
-      
-      console.log("[ZenmarkEditor] Page added successfully, current page list:", xbook.layoutService.pageBox.getPageList?.());
+      console.log("[ZenmarkEditor] Opening PPT file with opener:", { openerId: opener.id, uri: pptUri });
+      opener.init(pptUri);
 
       xbook.notificationService.success("Markdown 内容已发送到 PPT 应用");
     } catch (error) {

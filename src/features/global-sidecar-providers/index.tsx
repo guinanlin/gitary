@@ -1,9 +1,11 @@
 import { createPlugin } from "xbook/common/createPlugin";
 import { GlobalSidecarProvider } from "xbook/global-sidecar/global-sidecar-provider";
 import { registerGlobalSidecarPane } from "xbook/global-sidecar/sidecar-pane-registry";
-import { GlobalChatPanel } from "./panes/global-chat-panel";
+import React from "react";
 import { AIAssistantIcon, ExcalidrawAIIcon } from "@/components/icons/ai-assistant-icon";
-import { ExcalidrawPaneBridge } from "./panes/excalidraw-pane-bridge";
+
+const GlobalChatPanel = React.lazy(() => import("./panes/global-chat-panel").then(module => ({ default: module.GlobalChatPanel })));
+const ExcalidrawPaneBridge = React.lazy(() => import("./panes/excalidraw-pane-bridge").then(module => ({ default: module.ExcalidrawPaneBridge })));
 
 // Feature flag: 暂时关闭 Excalidraw AI 的入口
 const ENABLE_EXCALIDRAW_AI = false;
