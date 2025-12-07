@@ -189,14 +189,26 @@ export class GitRepoFileSystemProvider implements FileSystemProvider {
   }
 
   async delete(uri: Uri, options: { recursive: boolean }): Promise<void> {
-    const path = uri.path; // 提取 Uri 中的路径
-    // 使用 GiteeClient 删除文件或目录
-    // 实现逻辑以删除文件或目录并处理错误
-    await this.gitClient.File.delete({
-      owner: this.owner,
-      repo: this.repo,
-      path,
-    });
+    let path = uri.path;
+    if (path.startsWith("/")) {
+      path = path.slice(1);
+    }
+    
+    try {
+      console.log(`[GitRepoFS] Deleting file: ${path} (owner: ${this.owner}, repo: ${this.repo})`);
+      const result = await this.gitClient.File.delete({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+        message: `Delete ${path}`,
+      });
+      console.log(`[GitRepoFS] File deleted successfully: ${path}`, result);
+      this.onDidChangeFileEmitter.fire([{ type: FileChangeType.Deleted, uri }]);
+    } catch (error: any) {
+      console.error(`[GitRepoFS] Failed to delete file: ${path}`, error);
+      const errorMessage = error?.response?.data?.message || error?.message || String(error);
+      throw new Error(`Failed to delete file "${path}": ${errorMessage}`);
+    }
   }
 
   async rename(

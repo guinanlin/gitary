@@ -43,7 +43,7 @@ export type LazyOpenerConfig = {
   /**
    * Dynamic import loader that returns the plugin
    */
-  loader: () => Promise<{ default?: any; [key: string]: any }>;
+  loader: () => Promise<{ default?: any;[key: string]: any }>;
   /**
    * Key to extract from the loaded module (if not using default export)
    */
@@ -158,14 +158,27 @@ class LazyOpenerService {
    * Open file with the loaded plugin
    */
   private openWithLoadedPlugin = (openerId: string, uri: string): void => {
-    // The plugin has already registered its real opener during activation
-    // We need to find and call it
-    const openers = openerService.getOpeners();
-    const opener = openers.find((o) => o.id === openerId);
-
-    if (opener) {
-      opener.init(uri);
+    const config = this.configs.get(openerId);
+    if (!config) {
+      console.error(`[LazyOpenerService] No config found for opener: ${openerId}`);
+      return;
     }
+
+    // Get filename from uri
+    const getFileName = (value: string) => {
+      return value.split("/").pop() ?? "unknown";
+    };
+
+    // The plugin has registered its component during activation
+    // We directly add a page with the component type
+    xbook.layoutService.pageBox.addPage({
+      id: `${openerId}:${uri}`,
+      title: `${config.label || openerId}:${getFileName(uri)}`,
+      viewData: {
+        type: openerId,
+        props: { uri },
+      },
+    });
   };
 
   /**

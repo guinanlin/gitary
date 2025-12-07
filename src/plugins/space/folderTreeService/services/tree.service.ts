@@ -51,20 +51,28 @@ export const createTreeService = (
       const { id, path } = node;
       this.updateViewState(id, { loading: true });
       try {
+        console.log(`[TreeService] Deleting node: ${path} (id: ${id})`);
         await xbook.fs.delete(spaceHelper.getUri(space.id, path!));
+        console.log(`[TreeService] Node deleted successfully: ${path}`);
         dataStore.getActions().delete({ id });
-      } catch (e) {
+        
+        const parentNode = this.findParentNode(path!);
+        if (parentNode && parentNode.children?.length === 0) {
+          const grandParentNode = this.findParentNode(parentNode.path!);
+          if (grandParentNode) {
+            this.deepRefresh(grandParentNode.id);
+          }
+        }
+      } catch (e: any) {
+        console.error(`[TreeService] Failed to delete node: ${path}`, e);
+        const errorMessage = e?.message || String(e);
+        xbook.notificationService.error(
+          t("tree.deleteFailed", { path: path || id, error: errorMessage }) || 
+          `删除失败: ${path || id} - ${errorMessage}`
+        );
       } finally {
         if (viewStateStore.getRecord(id)) {
           this.updateViewState(id, { loading: false });
-        }
-      }
-      // 如果父节点下没有子节点了，刷新祖父节点，因为父节点可能已经被删除
-      const parentNode = this.findParentNode(path!);
-      if (parentNode && parentNode.children?.length === 0) {
-        const grandParentNode = this.findParentNode(parentNode.path!);
-        if (grandParentNode) {
-          this.deepRefresh(grandParentNode.id);
         }
       }
     };
