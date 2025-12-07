@@ -12,6 +12,8 @@ export interface MindMapNode {
   width?: number;
   height?: number;
   color?: string;
+  manualX?: number;
+  manualY?: number;
 }
 
 export interface MindMapData {

@@ -36,7 +36,8 @@ export const ZenmarkEditorComponent = (props: { uri: string }) => {
   const { t } = useTranslation();
   const { uri } = props;
   const { content, setContent, loading, flush } = useDocument(uri, {
-    autosave: false,
+    autosave: true,
+    debounceMs: 3000,
   });
   const editorRef = useRef<HTMLDivElement>(null);
   const [toolbarElement, setToolbarElement] = useState<HTMLElement | null>(null);

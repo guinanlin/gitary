@@ -12,6 +12,7 @@ import type {
 interface MindMapStoreSnapshot {
   history: HistoryState;
   drafts: Record<NodeId, string>;
+  dragPositions: Record<NodeId, { x: number; y: number }>;
   selectedId: NodeId | null;
   editingId: NodeId | null;
 }
@@ -25,6 +26,7 @@ const createHistory = (data: MindMapData): HistoryState => ({
 const createSnapshot = (data: MindMapData): MindMapStoreSnapshot => ({
   history: createHistory(data),
   drafts: {},
+  dragPositions: {},
   selectedId: data.rootId,
   editingId: null,
 });
@@ -86,6 +88,13 @@ export class MindMapStore {
     this.subject.next({ ...snapshot, drafts });
   };
 
+  updateNodeDragPosition = (id: NodeId, x: number, y: number) => {
+    const snapshot = this.getCurrentState();
+    const dragPositions = { ...snapshot.dragPositions };
+    dragPositions[id] = { x, y };
+    this.subject.next({ ...snapshot, dragPositions });
+  };
+
   private emitWithHistory(nextData: MindMapData) {
     const snapshot = this.getCurrentState();
     this.subject.next({
@@ -106,6 +115,7 @@ export class MindMapStore {
   };
 
   toggleCollapse = (id: NodeId) => {
+    console.log("[MindMapStore] toggleCollapse", { id });
     const snapshot = this.getCurrentState();
     const nodes = { ...snapshot.history.present.nodes };
     if (!nodes[id]) return;
@@ -113,6 +123,26 @@ export class MindMapStore {
     this.emitWithHistory({
       ...snapshot.history.present,
       nodes,
+    });
+  };
+
+  updateNodePosition = (id: NodeId, x: number, y: number) => {
+    const snapshot = this.getCurrentState();
+    const nodes = { ...snapshot.history.present.nodes };
+    if (!nodes[id]) return;
+    nodes[id] = { ...nodes[id], manualX: x, manualY: y };
+
+    // Clear drag position when committing the final position
+    const dragPositions = { ...snapshot.dragPositions };
+    delete dragPositions[id];
+
+    this.subject.next({
+      ...snapshot,
+      dragPositions,
+      history: pushHistory(snapshot, {
+        ...snapshot.history.present,
+        nodes,
+      }),
     });
   };
 

@@ -8,6 +8,8 @@ const cloneNode = (node: MindMapNode): MindMapNode => ({
   children: [...node.children],
   isExpanded: node.isExpanded,
   depth: node.depth,
+  manualX: node.manualX,
+  manualY: node.manualY,
 });
 
 export const cloneMindMapData = (data: MindMapData): MindMapData => ({
@@ -42,7 +44,7 @@ export const normalizeMindMapData = (value: unknown): MindMapData => {
   const normalizedNodes: Record<string, MindMapNode> = {};
   for (const [id, node] of Object.entries(nodesInput)) {
     if (!node || typeof node !== "object") continue;
-    const { text, parentId, children, isExpanded, depth } = node as MindMapNode;
+    const { text, parentId, children, isExpanded, depth, manualX, manualY } = node as MindMapNode;
     normalizedNodes[id] = {
       id,
       text: typeof text === "string" ? text : "",
@@ -52,6 +54,8 @@ export const normalizeMindMapData = (value: unknown): MindMapData => {
         : [],
       isExpanded: typeof isExpanded === "boolean" ? isExpanded : true,
       depth: typeof depth === "number" ? depth : 0,
+      manualX: typeof manualX === "number" ? manualX : undefined,
+      manualY: typeof manualY === "number" ? manualY : undefined,
     };
   }
 

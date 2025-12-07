@@ -122,7 +122,38 @@
     "deepAnalysis": "深入分析",
     "lateralThinking": "横向联想",
     "abstractSummary": "抽象概括",
-    "confirmDelete": "确定要删除这个节点吗？相关的连接也会被删除。"
+    "confirmDelete": "确定要删除这个节点吗？相关的连接也会被删除。",
+    "status": {
+      "idle": "空闲",
+      "saving": "保存中...",
+      "saved": "已保存",
+      "error": "保存失败",
+      "dirty": "未保存改动"
+    },
+    "controls": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "reset": "重置视图"
+    },
+    "instructions": {
+      "title": "快捷键",
+      "show": "显示快捷键",
+      "hide": "隐藏快捷键",
+      "select": "选中节点",
+      "selectAction": "单击节点",
+      "edit": "编辑节点",
+      "editAction": "空格",
+      "addChild": "添加子节点",
+      "addChildAction": "Tab",
+      "addSibling": "添加同级节点",
+      "addSiblingAction": "Enter",
+      "delete": "删除节点",
+      "deleteAction": "Backspace / Delete",
+      "navigate": "移动选中",
+      "navigateAction": "方向键",
+      "pan": "平移画布",
+      "panAction": "拖拽空白区域"
+    }
   },
   "auth": {
     "unsupportedPlatform": "不支持的平台: {{platform}}",

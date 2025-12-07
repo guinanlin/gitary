@@ -122,7 +122,38 @@
     "deepAnalysis": "Deep Analysis",
     "lateralThinking": "Lateral Thinking",
     "abstractSummary": "Abstract Summary",
-    "confirmDelete": "Are you sure you want to delete this node? Related connections will also be deleted."
+    "confirmDelete": "Are you sure you want to delete this node? Related connections will also be deleted.",
+    "status": {
+      "idle": "Idle",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "error": "Save failed",
+      "dirty": "Unsaved changes"
+    },
+    "controls": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "reset": "Reset view"
+    },
+    "instructions": {
+      "title": "Shortcuts",
+      "show": "Show shortcuts",
+      "hide": "Hide shortcuts",
+      "select": "Select node",
+      "selectAction": "Click node",
+      "edit": "Edit node",
+      "editAction": "Space",
+      "addChild": "Add child",
+      "addChildAction": "Tab",
+      "addSibling": "Add sibling",
+      "addSiblingAction": "Enter",
+      "delete": "Delete node",
+      "deleteAction": "Backspace / Delete",
+      "navigate": "Move selection",
+      "navigateAction": "Arrow keys",
+      "pan": "Pan canvas",
+      "panAction": "Drag empty space"
+    }
   },
   "auth": {
     "unsupportedPlatform": "Unsupported platform: {{platform}}",

@@ -16,6 +16,8 @@ interface UseMindMapResult {
   addSibling: (referenceId: NodeId) => void;
   deleteNode: (id: NodeId) => void;
   toggleCollapse: (id: NodeId) => void;
+  updateNodePosition: (id: NodeId, x: number, y: number) => void;
+  updateNodeDragPosition: (id: NodeId, x: number, y: number) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -26,10 +28,27 @@ interface UseMindMapResult {
 export const useMindMap = (store: MindMapStore): UseMindMapResult => {
   const snapshot = useBehaviorSubjectValue(store.state$);
 
-  const layoutNodes = useMemo(
-    () => computeLayout(snapshot.history.present, snapshot.drafts),
-    [snapshot.history.present, snapshot.drafts],
-  );
+  const layoutNodes = useMemo(() => {
+    const nodes = computeLayout(snapshot.history.present, snapshot.drafts);
+
+    // Merge drag positions
+    if (Object.keys(snapshot.dragPositions).length > 0) {
+      return Object.entries(nodes).reduce((acc, [id, node]) => {
+        if (snapshot.dragPositions[id]) {
+          acc[id] = {
+            ...node,
+            x: snapshot.dragPositions[id].x,
+            y: snapshot.dragPositions[id].y,
+          };
+        } else {
+          acc[id] = node;
+        }
+        return acc;
+      }, {} as Record<string, MindMapNode>);
+    }
+
+    return nodes;
+  }, [snapshot.history.present, snapshot.drafts, snapshot.dragPositions]);
 
   const setSelectedId = useCallback((id: NodeId | null) => {
     store.setSelectedId(id);
@@ -81,6 +100,20 @@ export const useMindMap = (store: MindMapStore): UseMindMapResult => {
     [store],
   );
 
+  const updateNodePosition = useCallback(
+    (id: NodeId, x: number, y: number) => {
+      store.updateNodePosition(id, x, y);
+    },
+    [store],
+  );
+
+  const updateNodeDragPosition = useCallback(
+    (id: NodeId, x: number, y: number) => {
+      store.updateNodeDragPosition(id, x, y);
+    },
+    [store],
+  );
+
   const undo = useCallback(() => {
     store.undo();
   }, [store]);
@@ -101,6 +134,8 @@ export const useMindMap = (store: MindMapStore): UseMindMapResult => {
     addSibling,
     deleteNode,
     toggleCollapse,
+    updateNodePosition,
+    updateNodeDragPosition,
     undo,
     redo,
     canUndo: snapshot.history.past.length > 0,

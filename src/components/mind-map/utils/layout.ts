@@ -76,8 +76,8 @@ export const computeLayout = (
   Object.values(data.nodes).forEach((node) => {
     nodes[node.id] = {
       ...node,
-      x: undefined,
-      y: undefined,
+      x: node.manualX !== undefined ? node.manualX : undefined,
+      y: node.manualY !== undefined ? node.manualY : undefined,
       width: undefined,
       height: undefined,
     };
@@ -120,32 +120,52 @@ export const computeLayout = (
   const assignCoordinates = (nodeId: string, x: number, y: number) => {
     const node = nodes[nodeId] as LayoutNode | undefined;
     if (!node) return;
-    node.x = x;
-    node.y = y;
+    
+    if (node.manualX !== undefined && node.manualY !== undefined) {
+      node.x = node.manualX;
+      node.y = node.manualY;
+    } else {
+      node.x = x;
+      node.y = y;
+    }
 
     if (!node.children.length || !node.isExpanded) return;
 
+    const parentX = node.x!;
+    const parentY = node.y!;
+
+    const autoChildren = node.children.filter((childId) => {
+      const child = nodes[childId] as LayoutNode | undefined;
+      return child && child.manualX === undefined && child.manualY === undefined;
+    });
+
     let childrenBlockHeight = 0;
-    node.children.forEach((childId) => {
+    autoChildren.forEach((childId) => {
       const child = nodes[childId] as LayoutNode | undefined;
       if (child) {
         childrenBlockHeight += child.subtreeHeight;
       }
     });
-    childrenBlockHeight += (node.children.length - 1) * VERTICAL_SPACING;
+    if (autoChildren.length > 1) {
+      childrenBlockHeight += (autoChildren.length - 1) * VERTICAL_SPACING;
+    }
 
-    let currentY = y - childrenBlockHeight / 2;
+    let currentY = parentY - childrenBlockHeight / 2;
 
     node.children.forEach((childId) => {
       const child = nodes[childId] as LayoutNode | undefined;
       if (!child) return;
 
-      const childHeight = child.subtreeHeight;
-      const childY = currentY + childHeight / 2;
-      const childX = x + (node.width! / 2) + HORIZONTAL_GAP + (child.width! / 2);
-
-      assignCoordinates(childId, childX, childY);
-      currentY += childHeight + VERTICAL_SPACING;
+      if (child.manualX !== undefined && child.manualY !== undefined) {
+        child.x = child.manualX;
+        child.y = child.manualY;
+      } else {
+        const childHeight = child.subtreeHeight;
+        const childY = currentY + childHeight / 2;
+        const childX = parentX + (node.width! / 2) + HORIZONTAL_GAP + (child.width! / 2);
+        assignCoordinates(childId, childX, childY);
+        currentY += childHeight + VERTICAL_SPACING;
+      }
     });
   };
 

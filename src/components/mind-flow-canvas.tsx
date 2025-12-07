@@ -67,6 +67,8 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
     addSibling,
     deleteNode,
     toggleCollapse,
+    updateNodePosition,
+    updateNodeDragPosition,
     undo,
     redo,
     canUndo,
@@ -75,6 +77,7 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
 
   const [viewport, setViewport] = useState<ViewportState>(buildViewport);
   const [isPanning, setIsPanning] = useState(false);
+  const [isDraggingNode, setIsDraggingNode] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hasManualViewChangeRef = useRef(false);
@@ -210,6 +213,7 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
   );
 
   const handleMouseDown = (event: React.MouseEvent) => {
+    if (isDraggingNode) return;
     if ((event.target as Element).tagName === "svg" || (event.target as Element).id === "canvas-bg") {
       setIsPanning(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
@@ -414,6 +418,7 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
           theme={theme}
           isSelected={selectedId === node.id}
           isEditing={editingId === node.id}
+          viewport={viewport}
           onSelect={setSelectedId}
           onEditStart={setEditingId}
           onEditChange={updateDraft}
@@ -424,6 +429,13 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
           }}
           onToggleCollapse={toggleCollapse}
           onAddChild={addChild}
+          onPositionChange={updateNodePosition}
+          onPositionDrag={updateNodeDragPosition}
+          onDragStart={() => {
+            setIsDraggingNode(true);
+            hasManualViewChangeRef.current = true;
+          }}
+          onDragEnd={() => setIsDraggingNode(false)}
         />
       ));
   }, [
@@ -437,6 +449,7 @@ export const MindFlowCanvas = ({ store, saveStatus }: MindFlowCanvasProps) => {
     updateNodeText,
     toggleCollapse,
     addChild,
+    viewport,
   ]);
 
   const canvas: ReactNode = (
