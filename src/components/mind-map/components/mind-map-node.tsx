@@ -86,6 +86,8 @@ export const MindMapNodeComponent = ({
     if (isEditing) return;
     const target = event.target as Element;
     if (target.closest('textarea')) return;
+    if (target.closest('[data-collapse-toggle]')) return;
+    if (target.closest('[data-add-child]')) return;
     if (target.closest('circle')) return;
     if (target.closest('path')) return;
     if (target.closest('text')) return;
@@ -254,6 +256,32 @@ export const MindMapNodeComponent = ({
           </text>
         </g>
       )}
+
+      <g
+        data-add-child
+        transform={`translate(0, ${height / 2 + 12})`}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          onAddChild(node.id);
+        }}
+        className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+      >
+        <circle
+          r="8"
+          className="fill-white dark:fill-slate-800 stroke-slate-300 dark:stroke-slate-600"
+        />
+        <text
+          dy=".3em"
+          textAnchor="middle"
+          className="text-[10px] fill-slate-500 font-bold select-none pointer-events-none"
+        >
+          +
+        </text>
+      </g>
     </g>
   );
 };

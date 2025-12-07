@@ -1,7 +1,8 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { map } from "rxjs/operators";
-import { DEFAULT_MIND_MAP_DATA } from "./constants";
+import { DEFAULT_MIND_MAP_DATA, HORIZONTAL_GAP, MIN_NODE_HEIGHT, MIN_NODE_WIDTH, VERTICAL_SPACING } from "./constants";
 import { cloneMindMapData } from "./data-helpers";
+import { computeLayout } from "./utils/layout";
 import type {
   HistoryState,
   MindMapData,
@@ -119,7 +120,21 @@ export class MindMapStore {
     const snapshot = this.getCurrentState();
     const nodes = { ...snapshot.history.present.nodes };
     if (!nodes[id]) return;
-    nodes[id] = { ...nodes[id], isExpanded: !nodes[id].isExpanded };
+
+    const nextExpanded = !nodes[id].isExpanded;
+    nodes[id] = { ...nodes[id], isExpanded: nextExpanded };
+
+    if (!nextExpanded) {
+      const stack = [...nodes[id].children];
+      while (stack.length) {
+        const childId = stack.pop()!;
+        const child = nodes[childId];
+        if (!child) continue;
+        nodes[childId] = { ...child, isExpanded: false };
+        stack.push(...child.children);
+      }
+    }
+
     this.emitWithHistory({
       ...snapshot.history.present,
       nodes,
@@ -150,6 +165,10 @@ export class MindMapStore {
     const snapshot = this.getCurrentState();
     const parent = snapshot.history.present.nodes[parentId];
     if (!parent) return;
+    
+    const currentLayout = computeLayout(snapshot.history.present, snapshot.drafts);
+    const parentLayoutNode = currentLayout[parentId];
+    
     const id = `node-${Date.now()}`;
     const newNode: MindMapNode = {
       id,
@@ -158,13 +177,58 @@ export class MindMapStore {
       children: [],
       isExpanded: true,
     };
+    
+    let newNodeManualX: number | undefined;
+    let newNodeManualY: number | undefined;
+
+    if (parentLayoutNode) {
+      const parentWidth = parentLayoutNode.width ?? MIN_NODE_WIDTH;
+      const siblingLayouts = parent.children
+        .map((childId) => currentLayout[childId])
+        .filter((child): child is MindMapNode => !!child && child.x !== undefined && child.y !== undefined);
+
+      const rightX =
+        (parentLayoutNode.x ?? 0) +
+        parentWidth / 2 +
+        HORIZONTAL_GAP +
+        (MIN_NODE_WIDTH / 2);
+
+      const lastSibling = siblingLayouts.at(-1);
+      if (lastSibling && lastSibling.y !== undefined) {
+        const lastSiblingHeight = lastSibling.height ?? MIN_NODE_HEIGHT;
+        newNodeManualY = lastSibling.y + lastSiblingHeight / 2 + VERTICAL_SPACING + MIN_NODE_HEIGHT / 2;
+      } else {
+        newNodeManualY = parentLayoutNode.y ?? 0;
+      }
+
+      newNodeManualX = rightX;
+    }
+
     const nodes = { ...snapshot.history.present.nodes };
-    nodes[id] = newNode;
-    nodes[parentId] = {
+    nodes[id] = {
+      ...newNode,
+      manualX: newNodeManualX,
+      manualY: newNodeManualY,
+    };
+    
+    const updatedParent: MindMapNode = {
       ...parent,
       children: [...parent.children, id],
       isExpanded: true,
     };
+    
+    if (parentLayoutNode && parentLayoutNode.x !== undefined && parentLayoutNode.y !== undefined) {
+      if (parent.manualX === undefined && parent.manualY === undefined) {
+        updatedParent.manualX = parentLayoutNode.x;
+        updatedParent.manualY = parentLayoutNode.y;
+      } else {
+        updatedParent.manualX = parent.manualX;
+        updatedParent.manualY = parent.manualY;
+      }
+    }
+    
+    nodes[parentId] = updatedParent;
+    
     this.subject.next({
       ...snapshot,
       history: pushHistory(snapshot, {
