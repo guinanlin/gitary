@@ -139,9 +139,9 @@ git push origin refactor/before-refactor
 
 ```bash
 mkdir -p apps/web
-mkdir -p extensions/browser-extension
 mkdir -p config
 mkdir -p scripts
+# 注意：browser-extension 是独立的 Chrome addon，保持不变
 ```
 
 ##### 1.2 移动应用代码（3天）
@@ -154,8 +154,7 @@ git mv src apps/web/src
 git mv public apps/web/public
 git mv index.html apps/web/index.html
 
-# 移动浏览器扩展
-git mv browser-extension extensions/browser-extension/gitary-companion
+# 注意：browser-extension 是独立的 Chrome addon，保持不变
 
 # 移动图片资源（可选）
 git mv images apps/web/public/images
@@ -188,9 +187,9 @@ git mv images docs/images
     "test": "pnpm -r test",
     "preview": "pnpm --filter @gitary/web preview",
     "clean": "pnpm -r clean && rm -rf node_modules",
-    "ext:gitary:build": "pnpm --filter @gitary/browser-extension build",
-    "ext:gitary:watch": "pnpm --filter @gitary/browser-extension watch",
-    "ext:gitary:pack": "pnpm --filter @gitary/browser-extension pack"
+    "ext:gitary:build": "pnpm -C browser-extension/gitary-companion run pack",
+    "ext:gitary:watch": "pnpm -C browser-extension/gitary-companion run build:watch",
+    "ext:gitary:pack": "pnpm -C browser-extension/gitary-companion run pack"
   }
 }
 ```

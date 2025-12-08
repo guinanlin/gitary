@@ -54,17 +54,16 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 // 需要创建的目录
 const DIRS_TO_CREATE = [
   'apps/web',
-  'extensions/browser-extension',
   'config',
   'scripts'
 ];
 
 // 需要移动的文件/目录（使用 git mv 保持历史）
+// 注意：browser-extension 是独立的 Chrome addon，保持不变
 const FILES_TO_MOVE = [
   { from: 'src', to: 'apps/web/src' },
   { from: 'public', to: 'apps/web/public' },
   { from: 'index.html', to: 'apps/web/index.html' },
-  { from: 'browser-extension', to: 'extensions/browser-extension/gitary-companion' },
 ];
 
 // 需要移动到 config/ 的配置文件（阶段2使用）
