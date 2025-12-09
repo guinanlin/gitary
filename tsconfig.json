@@ -27,13 +27,13 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "xbook/*": [
-        "./src/xbook/*"
+        "./apps/web/src/xbook/*"
       ],
       "xbook": [
-        "./src/xbook"
+        "./apps/web/src/xbook"
       ],
       "@/*": [
-        "./src/*"
+        "./apps/web/src/*"
       ],
       "libs/*": [
         "./libs/*"
@@ -41,7 +41,7 @@
     }
   },
   "include": [
-    "src",
+    "apps/web/src",
     "libs"
   ],
   "references": [

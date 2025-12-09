@@ -8,6 +8,7 @@ import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 console.log("dependencies", dependencies);
 export default defineConfig({
+  root: "apps/web",
   base: "/",
   plugins: [
     react(),
@@ -44,11 +45,11 @@ export default defineConfig({
     alias: [
       {
         find: "@",
-        replacement: resolve(__dirname, "src"),
+        replacement: resolve(__dirname, "apps/web/src"),
       },
       {
         find: "xbook",
-        replacement: resolve(__dirname, "src/xbook"),
+        replacement: resolve(__dirname, "apps/web/src/xbook"),
       },
       {
         find: "libs",
@@ -56,17 +57,16 @@ export default defineConfig({
       },
     ],
   },
+  publicDir: resolve(__dirname, "apps/web/public"),
   server: {
     host: "0.0.0.0",
     port: 5173,
   },
   build: {
     minify: "esbuild",
-    outDir: "dist/",
+    outDir: "../../dist",
     rollupOptions: {
-      input: {
-        app: "index.html",
-      },
+      input: resolve(__dirname, "apps/web/index.html"),
       output: {
         manualChunks: renderChunksWithStrategy(dependencies),
       },
