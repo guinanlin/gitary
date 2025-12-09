@@ -36,17 +36,12 @@
         "./apps/web/src/*"
       ],
       "libs/*": [
-        "./libs/*"
+        "./apps/web/libs/*"
       ],
     }
   },
   "include": [
     "apps/web/src",
-    "libs"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
+    "apps/web/libs"
   ]
 }
