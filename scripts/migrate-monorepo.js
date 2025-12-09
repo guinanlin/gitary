@@ -8,7 +8,7 @@
  * 2. 移动应用代码到 apps/web/
  * 3. 更新基本配置
  * 
- * 注意：browser-extension 是独立的 Chrome addon，保持不变
+ * 注意：browser-extension 是独立的 Chrome addon，位于 apps/browser-extension/
  */
 
 const fs = require('fs');

@@ -35,9 +35,9 @@
     "update": "yarn deploy && yarn git:update",
     "oss:upload": "ossutil cp -r -u dist/ oss://write-dimstack-com/ -c ./.ossutilconfig.local",
     "deploy:pages": "pnpm run build && gh-pages -d dist -b deploy",
-    "ext:gitary:build": "pnpm -C browser-extension/gitary-companion run pack",
-    "ext:gitary:watch": "pnpm -C browser-extension/gitary-companion run build:watch",
-    "ext:gitary:pack": "pnpm -C browser-extension/gitary-companion run pack"
+    "ext:gitary:build": "pnpm -C apps/browser-extension/gitary-companion run pack",
+    "ext:gitary:watch": "pnpm -C apps/browser-extension/gitary-companion run build:watch",
+    "ext:gitary:pack": "pnpm -C apps/browser-extension/gitary-companion run pack"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.41",
