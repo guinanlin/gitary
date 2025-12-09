@@ -4,7 +4,7 @@
   "rsc": false,
   "tsx": true,
   "tailwind": {
-    "config": "tailwind.config.js",
+    "config": "../tailwind.config.js",
     "css": "../src/xbook/ui/styles/globals.scss",
     "baseColor": "slate",
     "cssVariables": true,

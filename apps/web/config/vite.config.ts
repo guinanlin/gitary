@@ -8,7 +8,7 @@ import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 console.log("dependencies", dependencies);
 export default defineConfig({
-  root: "..",
+  root: resolve(__dirname, ".."),
   base: "/",
   plugins: [
     react(),
@@ -58,6 +58,14 @@ export default defineConfig({
     ],
   },
   publicDir: resolve(__dirname, "../public"),
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+    ],
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,
