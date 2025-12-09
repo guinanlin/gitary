@@ -1,0 +1,31 @@
+{
+  "extends": "./config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "xbook/*": [
+        "./src/xbook/*"
+      ],
+      "xbook": [
+        "./src/xbook"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "libs/*": [
+        "./libs/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "libs/**/*",
+    "index.html"
+  ],
+  "references": [
+    {
+      "path": "./config/tsconfig.node.json"
+    }
+  ]
+}
+

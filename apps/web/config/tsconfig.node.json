@@ -8,8 +8,8 @@
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "package.json",
+    "../package.json",
     "vite.config.ts",
-    "splitChunks.ts",
+    "splitChunks.ts"
   ]
 }

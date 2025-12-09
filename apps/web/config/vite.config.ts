@@ -1,14 +1,14 @@
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 import { defineConfig } from "vite";
-import { dependencies } from "./package.json";
+import { dependencies } from "../package.json";
 import { renderChunksWithStrategy } from "./splitChunks";
 import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 
 console.log("dependencies", dependencies);
 export default defineConfig({
-  root: "apps/web",
+  root: "..",
   base: "/",
   plugins: [
     react(),
@@ -45,19 +45,19 @@ export default defineConfig({
     alias: [
       {
         find: "@",
-        replacement: resolve(__dirname, "apps/web/src"),
+        replacement: resolve(__dirname, "../src"),
       },
       {
         find: "xbook",
-        replacement: resolve(__dirname, "apps/web/src/xbook"),
+        replacement: resolve(__dirname, "../src/xbook"),
       },
       {
         find: "libs",
-        replacement: resolve(__dirname, "apps/web/libs"),
+        replacement: resolve(__dirname, "../libs"),
       },
     ],
   },
-  publicDir: resolve(__dirname, "apps/web/public"),
+  publicDir: resolve(__dirname, "../public"),
   server: {
     host: "0.0.0.0",
     port: 5173,
@@ -66,7 +66,7 @@ export default defineConfig({
     minify: "esbuild",
     outDir: "../../dist",
     rollupOptions: {
-      input: resolve(__dirname, "apps/web/index.html"),
+      input: resolve(__dirname, "../index.html"),
       output: {
         manualChunks: renderChunksWithStrategy(dependencies),
       },
