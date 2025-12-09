@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config config/vite.config.ts",
-    "build": "pnpm --filter @dty/ai-assistant-core run build && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --project tsconfig.json && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --config config/vite.config.ts",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --project tsconfig.json && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --config config/vite.config.ts",
     "build:fast": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --config config/vite.config.ts",
     "preview": "vite preview --config config/vite.config.ts",
     "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.json",

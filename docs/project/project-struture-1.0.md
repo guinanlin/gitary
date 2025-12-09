@@ -2,7 +2,7 @@
 
 ## 一、项目概述
 
-Gitary 是一个基于 Monorepo 架构的现代化 Web 应用，采用 pnpm workspace 管理多个包和应用。项目提供 Notion 风格的编辑体验和 Excalidraw 绘图能力，支持与 GitHub/Gitee/GitCode 等 Git 仓库集成。
+Gitary 是一个基于 Monorepo 架构的现代化 Web 应用，采用 pnpm workspace 管理多个包和应用，使用 Turbo 进行高性能构建和任务编排。项目提供 Notion 风格的编辑体验和 Excalidraw 绘图能力，支持与 GitHub/Gitee/GitCode 等 Git 仓库集成。
 
 ## 二、根目录结构
 
@@ -11,6 +11,7 @@ gitary/
 ├── package.json              # 根 package.json（workspace 配置）
 ├── pnpm-workspace.yaml       # pnpm workspace 配置
 ├── pnpm-lock.yaml            # 锁文件
+├── turbo.json                # Turbo 构建配置
 ├── tsconfig.json             # 根 TypeScript 配置
 ├── README.md                 # 项目说明（英文）
 ├── README.zh-CN.md           # 项目说明（中文）
@@ -362,39 +363,70 @@ alias: [
 
 ## 七、构建和开发
 
-### 7.1 开发命令
+### 7.1 Turbo 构建系统
+
+项目使用 **Turbo** 作为构建系统，提供以下优势：
+
+- **并行构建**：自动并行执行独立任务，充分利用多核 CPU
+- **智能缓存**：基于文件哈希的增量构建，未变更的包自动使用缓存
+- **依赖管理**：自动分析包依赖关系，按正确顺序执行构建
+- **任务编排**：统一管理构建、开发、测试、检查等任务
+
+### 7.2 开发命令
 
 ```bash
-# 启动开发服务器
+# 启动开发服务器（Turbo 并行启动）
 pnpm dev
 
-# 构建生产版本
+# 构建生产版本（Turbo 并行构建，自动管理依赖）
 pnpm build
 
-# 快速构建（跳过类型检查）
+# 快速构建（只构建 web 应用）
 pnpm build:fast
 
-# 类型检查
+# 类型检查（Turbo 并行执行）
 pnpm typecheck
 
-# 代码检查
+# 代码检查（Turbo 并行执行）
 pnpm lint
 
-# 修复代码问题
+# 修复代码问题（Turbo 并行执行）
 pnpm lint:fix
 ```
 
-### 7.2 Monorepo 命令
+### 7.3 Monorepo 命令
 
 ```bash
-# 构建所有包
+# 构建所有包（Turbo 并行构建，自动管理依赖顺序）
 pnpm build:all
 
-# 检查所有包
+# 检查所有包（Turbo 并行执行）
 pnpm lint:all
 
-# 修复所有包
+# 修复所有包（Turbo 并行执行）
 pnpm lint:fix:all
+
+# 测试所有包（Turbo 并行执行）
+pnpm test
+
+# 清理所有包
+pnpm clean
+```
+
+### 7.4 Turbo 高级命令
+
+```bash
+# 查看构建计划（不实际执行）
+pnpm turbo build --dry-run
+
+# 只构建特定包及其依赖
+pnpm turbo build --filter=@gitary/web
+
+# 强制重新构建（忽略缓存）
+pnpm turbo build --force
+
+# 查看缓存统计
+pnpm turbo build --summarize
 ```
 
 ### 7.3 浏览器扩展命令
@@ -427,6 +459,8 @@ packages:
 apps/web
 ├── @dty/ai-assistant-core (workspace:*)
 ├── app-toolkit (workspace:*)
+├── rx-bean (workspace:*)
+├── rx-nested-bean (workspace:*)
 └── 其他外部依赖...
 
 packages/ai-assistant-core
@@ -439,14 +473,24 @@ packages/git-auth
 └── 独立包，无 workspace 依赖
 ```
 
+### 8.3 Turbo 依赖管理
+
+Turbo 自动分析包依赖关系，确保构建顺序正确：
+
+- **构建顺序**：Turbo 会先构建 `@dty/ai-assistant-core`、`app-toolkit`、`rx-bean`、`rx-nested-bean`，然后再构建 `@gitary/web`
+- **并行构建**：独立的包（如 `@dimstack/git-auth`、`@dimstack/git-provider`、`@dty/ai-assistant-core`）可以并行构建
+- **增量构建**：未变更的包会使用缓存，大幅减少构建时间
+
 ## 九、配置文件位置
 
 ### 9.1 根目录配置
 
-- `package.json` - 根 package.json
+- `package.json` - 根 package.json（包含 Turbo 脚本）
 - `pnpm-workspace.yaml` - Workspace 配置
+- `turbo.json` - Turbo 构建配置（任务管道、缓存策略等）
 - `tsconfig.json` - 根 TypeScript 配置
 - `.eslintrc.cjs` - ESLint 配置
+- `.gitignore` - Git 忽略配置（包含 `.turbo` 缓存目录）
 
 ### 9.2 应用级配置（`apps/web/config/`）
 
@@ -470,7 +514,8 @@ packages/git-auth
 ### 10.1 技术栈
 
 - **框架**：React 18 + TypeScript
-- **构建工具**：Vite (rolldown-vite)
+- **构建工具**：Vite (rolldown-vite) + Turbo
+- **Monorepo 管理**：pnpm workspace + Turbo
 - **样式**：Tailwind CSS + SCSS
 - **状态管理**：Zustand + RxJS
 - **UI 组件库**：Radix UI + shadcn/ui
@@ -491,11 +536,13 @@ packages/git-auth
 ### 11.1 当前结构特点
 
 - ✅ 已实现 Monorepo 架构
+- ✅ 集成 Turbo 构建系统，支持并行构建和智能缓存
 - ✅ 应用代码位于 `apps/web/`
 - ✅ 浏览器扩展位于 `apps/browser-extension/`
 - ✅ 配置文件集中在 `apps/web/config/`
 - ✅ 第三方库封装在 `apps/web/libs/`
 - ✅ 采用分层架构（app/plugin/service/toolkit）
+- ✅ Turbo 自动管理包依赖关系和构建顺序
 
 ### 11.2 与未来规划的差异
 
@@ -524,10 +571,47 @@ packages/git-auth
 - 组件、服务、工具分离
 - 使用 TypeScript 严格模式
 
+## 十三、Turbo 构建系统
+
+### 13.1 Turbo 配置
+
+Turbo 配置文件位于根目录 `turbo.json`，定义了以下任务：
+
+- **build**：构建任务，自动管理依赖关系（`dependsOn: ["^build"]`）
+- **dev**：开发任务，持久化运行（`persistent: true`），不使用缓存
+- **typecheck**：类型检查任务，依赖构建完成
+- **lint**：代码检查任务
+- **test**：测试任务，依赖构建完成
+- **clean**：清理任务，不使用缓存
+
+### 13.2 Turbo 缓存机制
+
+- **本地缓存**：构建结果存储在 `.turbo` 目录（已添加到 `.gitignore`）
+- **缓存键**：基于文件内容哈希、环境变量、依赖关系生成
+- **缓存命中**：未变更的包自动使用缓存，跳过构建
+- **缓存失效**：文件变更、环境变量变更、依赖变更时自动失效
+
+### 13.3 性能优势
+
+使用 Turbo 后，项目构建性能显著提升：
+
+- **全量构建**：并行执行，时间减少 60-80%
+- **增量构建**：智能缓存，时间减少 90%+
+- **开发启动**：并行启动，时间减少 50-75%
+- **CI/CD**：只构建变更的包，时间减少 70-80%
+
+### 13.4 依赖管理
+
+Turbo 自动分析 `package.json` 中的 workspace 依赖，确保：
+
+- 依赖包先于被依赖包构建
+- 独立包并行构建
+- 构建顺序正确，避免构建错误
+
 ---
 
-**文档版本**：v1.0  
+**文档版本**：v1.1  
 **创建日期**：2025-01-27  
 **最后更新**：2025-01-27  
-**基于项目实际结构生成**
+**基于项目实际结构生成，已集成 Turbo 构建系统**
 

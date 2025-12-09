@@ -27,3 +27,6 @@ browser-extension/gitary-companion/gitary-companion.zip
 *.sw?
 tmp
 .env
+
+# Turbo
+.turbo
