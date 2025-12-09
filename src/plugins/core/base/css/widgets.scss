@@ -101,6 +101,12 @@
   --color-bg-editor-inner: var(--editor-default-bg-color);
   --color-text-editor: var(--main-content-text-color);
 
+  .zenmark-editor__header.zenmark-toolbar {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
   .zenmark-editor-middle {
     padding-top: 0 !important;
   }

@@ -7,7 +7,6 @@ import { componentService, eventBus } from "xbook/services";
 import { EventKeys } from "@/constants/eventKeys";
 import { IActivityItem } from "../types";
 import { BaseActivityItem } from "./base-activity-item";
-import * as React from "react";
 
 interface IShortcutItem {
   id: string;
