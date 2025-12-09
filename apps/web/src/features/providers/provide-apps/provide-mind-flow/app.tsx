@@ -68,9 +68,9 @@ export const AppMindFlow: FC<{
   useEffect(() => {
     if (!store) return;
     const shared$ = store.data$.pipe(
-      map((data) => cloneMindMapData(data)),
+      map((data) => cloneMindMapData(data as MindMapData)),
       distinctUntilChanged(
-        (a, b) => buildMindMapSnapshot(a) === buildMindMapSnapshot(b),
+        (a, b) => buildMindMapSnapshot(a as MindMapData) === buildMindMapSnapshot(b as MindMapData),
       ),
       shareReplay({ bufferSize: 1, refCount: true }),
     );

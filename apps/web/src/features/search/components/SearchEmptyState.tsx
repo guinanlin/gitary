@@ -35,7 +35,7 @@ export const SearchEmptyState: React.FC<Props> = ({ type }) => {
       <div className="flex-1 flex items-center justify-center min-h-0 px-4">
         <div className="text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/30">
-            <AiOutlineSearch className="h-6 w-6 text-muted-foreground/40" />
+            <span className="h-6 w-6 text-muted-foreground/40 inline-flex items-center justify-center"><AiOutlineSearch /></span>
           </div>
           <p className="text-sm text-muted-foreground/80">{t("search.noQuery")}</p>
           <p className="mt-1 text-sm text-muted-foreground/60">{t("search.noQueryDesc")}</p>

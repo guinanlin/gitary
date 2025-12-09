@@ -75,7 +75,7 @@ export const PageBoxController = defineController(() => {
     createBeanFromObservable(
       "TabBarCapacity",
       tabBarWidth$.pipe(
-        map((width) => Math.floor((width - 100) / (minTabWidth * 1.5)))
+        map((width: number) => Math.floor((width - 100) / (minTabWidth * 1.5)))
       ),
       100
     )
@@ -127,7 +127,7 @@ export const PageBoxController = defineController(() => {
   } = withUseHook(
     createBeanFromObservable(
       "CurrentPage",
-      pageList$.pipe(map((pageList) => pageList.find((p) => p.active))),
+      pageList$.pipe(map((pageList: PageDescriptor[]) => pageList.find((p) => p.active))),
       undefined
     )
   );
@@ -262,7 +262,7 @@ export const PageBoxController = defineController(() => {
       } = withUseHook(
         createBeanFromObservable(
           "ActivePageActions",
-          combineLatest([bean.PageActions$, enabledMap$]).pipe(
+          combineLatest([bean.PageActions$, enabledMap$] as [Observable<IPageAction[]>, Observable<Record<string, boolean>>]).pipe(
             map(([actions, enabledMap]) =>
               actions.filter((action) => enabledMap[action.id] === true)
             )

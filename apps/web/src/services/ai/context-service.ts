@@ -60,7 +60,7 @@ export class AIContextService {
         return undefined;
       }
 
-      const viewData = page.viewData as { type?: string; props?: { uri?: string } } | undefined;
+      const viewData = (page as any).viewData as { type?: string; props?: { uri?: string } } | undefined;
       const uri = viewData?.props?.uri as string | undefined;
       const openerId = viewData?.type as string | undefined;
 

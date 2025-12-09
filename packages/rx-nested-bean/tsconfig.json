@@ -9,7 +9,15 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
-    "lib": ["es2018", "dom", "ESNext"]
+    "lib": ["es2018", "dom", "ESNext"],
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types", "../../apps/web/node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "rxjs": ["../../apps/web/node_modules/rxjs"],
+      "rxjs/*": ["../../apps/web/node_modules/rxjs/*"],
+      "react": ["../../apps/web/node_modules/react"],
+      "react/*": ["../../apps/web/node_modules/react/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableIvy": false

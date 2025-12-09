@@ -35,9 +35,9 @@ export default createPlugin({
         return (
           <>
             {colorMode === "light" ? (
-              <CiLight {...props} onClick={() => toggleColorMode()} />
+              <span onClick={() => toggleColorMode()}><CiLight {...props} /></span>
             ) : (
-              <CiDark {...props} onClick={() => toggleColorMode()} />
+              <span onClick={() => toggleColorMode()}><CiDark {...props} /></span>
             )}
           </>
         );

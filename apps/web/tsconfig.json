@@ -2,6 +2,9 @@
   "extends": "./config/tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "skipLibCheck": true,
+    "typeRoots": ["../node_modules/@types", "./node_modules/@types"],
+    "moduleResolution": "bundler",
     "paths": {
       "xbook/*": [
         "./src/xbook/*"
@@ -14,6 +17,18 @@
       ],
       "libs/*": [
         "./libs/*"
+      ],
+      "rxjs": [
+        "./node_modules/rxjs"
+      ],
+      "rxjs/*": [
+        "./node_modules/rxjs/*"
+      ],
+      "react": [
+        "./node_modules/react"
+      ],
+      "react/*": [
+        "./node_modules/react/*"
       ]
     }
   },

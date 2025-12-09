@@ -22,20 +22,18 @@ export const MarkdownRenderer = ({ content, className, isDark = false }: Markdow
               const match = /language-(\w+)/.exec(className || '');
               return match ? (
                 <div className="relative group">
-                  <SyntaxHighlighter
-                    {...rest}
-                    PreTag="div"
-                    language={match[1]}
-                    style={isDark ? vscDarkPlus : oneLight}
-                    className="rounded-md border border-border/50 !my-3"
-                    customStyle={{
+                  {React.createElement(SyntaxHighlighter as any, {
+                    ...rest,
+                    PreTag: "div",
+                    language: match[1],
+                    style: isDark ? vscDarkPlus : oneLight,
+                    className: "rounded-md border border-border/50 !my-3",
+                    customStyle: {
                       margin: 0,
                       padding: '1rem',
                       backgroundColor: 'transparent',
-                    }}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
+                    },
+                  }, String(children).replace(/\n$/, ''))}
                 </div>
               ) : (
                 <code {...rest} className={cn("bg-muted px-1.5 py-0.5 rounded-sm font-mono text-xs", className)}>

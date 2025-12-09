@@ -54,7 +54,7 @@ export const createPageBox = (): {
       useVisible,
     } = proxy;
     const pageList = usePageList();
-    const tabBarCapacity = useTabBarCapacity();
+    const tabBarCapacity = useTabBarCapacity() as number;
     const tabBarVisible = useTabBarVisible();
     const visible = useVisible();
     const tabBarRef = useRef<HTMLDivElement>(null);

@@ -135,15 +135,16 @@ export const createRenderer = (registryName: string = "componentRegistry") => {
     }
 
     const ReactComponent = Component as React.ComponentType<SafeAny>;
+    const ErrorBoundaryComponent = ErrorBoundary as any;
     return (
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <ErrorBoundaryComponent FallbackComponent={ErrorFallback}>
         <ReactComponent {...props}>
           {children &&
             children.map((child, index) => (
               <Renderer key={index} layout={child} />
             ))}
         </ReactComponent>
-      </ErrorBoundary>
+      </ErrorBoundaryComponent>
     );
   };
 

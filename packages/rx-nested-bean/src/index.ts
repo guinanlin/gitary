@@ -79,6 +79,10 @@ const createTaskManager = () => {
 const taskManager = createTaskManager();
 
 export class FreezableBehaviorSubject<T> extends BehaviorSubject<T> {
+  constructor(initialValue: T) {
+    super(initialValue);
+  }
+  
   next(value: T): void {
     taskManager.submit(() => super.next(value));
   }
@@ -225,7 +229,7 @@ const getControlNode = (
       // no subsriber yet
       if (currentNode.children[route[i]] === undefined)
         currentNode.children[route[i]] = {
-          $: new FreezableBehaviorSubject(currentData[route[i]]),
+          $: new FreezableBehaviorSubject(currentData[route[i]] ?? {}),
           children: {},
         };
       currentData = currentData[route[i]];
@@ -342,7 +346,7 @@ const createNestedBeanInner = <T extends Record<string, any>>(
   scope?: string
 ): INestedBean<T> => {
   const controlTree = initialControlTree || {
-    $: new FreezableBehaviorSubject(dataTree.data),
+    $: new FreezableBehaviorSubject(dataTree.data ?? {} as T),
     children: {},
   };
   const normalizeKey = (key: string) => {

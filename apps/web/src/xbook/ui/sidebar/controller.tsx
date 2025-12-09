@@ -65,7 +65,7 @@ export const SidebarController = defineController(() => {
       );
       useEffect(() => {
         const sub = ViewList$.pipe(
-          map((views) => views.find((v) => v.id === id)),
+          map((views: View[]) => views.find((v) => v.id === id)),
           distinctUntilChanged()
         ).subscribe(setState);
         return () => sub.unsubscribe();

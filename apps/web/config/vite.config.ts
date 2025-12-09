@@ -55,6 +55,26 @@ export default defineConfig({
         find: "libs",
         replacement: resolve(__dirname, "../libs"),
       },
+      {
+        find: /^react$/,
+        replacement: resolve(__dirname, "../node_modules/react"),
+      },
+      {
+        find: /^react\/jsx-runtime$/,
+        replacement: resolve(__dirname, "../node_modules/react/jsx-runtime"),
+      },
+      {
+        find: /^react\/jsx-dev-runtime$/,
+        replacement: resolve(__dirname, "../node_modules/react/jsx-dev-runtime"),
+      },
+      {
+        find: /^rxjs$/,
+        replacement: resolve(__dirname, "../node_modules/rxjs"),
+      },
+      {
+        find: /^rxjs\/(.*)$/,
+        replacement: resolve(__dirname, "../node_modules/rxjs/$1"),
+      },
     ],
   },
   publicDir: resolve(__dirname, "../public"),

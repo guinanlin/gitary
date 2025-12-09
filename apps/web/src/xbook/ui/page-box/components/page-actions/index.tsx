@@ -13,8 +13,8 @@ export const PageActionView: FC<{ action: IPageAction }> = ({ action }) => {
       key={action.id}
       onClick={() => {
         const page = getCurrentPage();
-        if (page) {
-          onClick({ page });
+        if (page && typeof page === 'object' && page !== null && 'id' in page && 'title' in page) {
+          onClick({ page: page as any });
         }
       }}
       className={css`
@@ -34,7 +34,7 @@ export const PageActionView: FC<{ action: IPageAction }> = ({ action }) => {
 export const PageActions = () => {
   const controller = PageBoxController.useExistingInstance()!;
   const { useActivePageActions } = controller;
-  const activePageActions = useActivePageActions();
+  const activePageActions = useActivePageActions() as IPageAction[];
 
   return (
     <div

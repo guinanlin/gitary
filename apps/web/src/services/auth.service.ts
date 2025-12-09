@@ -57,14 +57,14 @@ export class AuthService {
       };
 
       const useRecord = (id: string) => {
-        const [record, setRecord] = useState(getRecord(id));
+        const [record, setRecord] = useState<AuthRecord | undefined>(getRecord(id));
         useSubscribeObservable(
           () =>
             AuthRecords$.pipe(
-              map((records) => records.find((r) => r.id === id)),
+              map((records: AuthRecord[]) => records.find((r) => r.id === id)),
               distinctUntilChanged()
             ),
-          (data) => {
+          (data: AuthRecord | undefined) => {
             setRecord(data);
           }
         );

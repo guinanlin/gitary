@@ -39,7 +39,7 @@ export const SearchInputBar: React.FC<Props> = ({
   return (
     <div className="relative flex-shrink-0 px-4">
       <div className="relative flex items-center gap-2.5 px-4 py-3 transition-all duration-200">
-        <AiOutlineSearch className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-colors duration-200" />
+        <span className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-colors duration-200 inline-flex items-center justify-center"><AiOutlineSearch /></span>
 
         <Input
           ref={inputRef}

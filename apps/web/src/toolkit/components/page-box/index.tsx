@@ -120,11 +120,11 @@ const PageBox = ({
     >
       {routeHistory.index > 0 && (
         <HStack position={"absolute"}>
-          <AiOutlineBackward
-            onClick={() => {
-              routeHistory.back();
-            }}
-          />
+          <span onClick={() => {
+            routeHistory.back();
+          }}>
+            <AiOutlineBackward />
+          </span>
         </HStack>
       )}
       {currentData?.title && (

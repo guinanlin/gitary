@@ -133,7 +133,7 @@ export const Tab: FC<TabProps> = ({
             side="right"
           >
             <div className="grid gap-1">
-              {actions.map((action, index) => (
+              {actions.map((action: TabAction, index) => (
                 <Button
                   key={index}
                   variant="ghost"

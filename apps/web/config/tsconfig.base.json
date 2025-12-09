@@ -23,6 +23,7 @@
     "noUnusedParameters": false,
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
     "paths": {
       "xbook/*": [
         "../src/xbook/*"

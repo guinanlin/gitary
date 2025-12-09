@@ -110,7 +110,7 @@ export const treePluginInitViewTemplate = createTreePluginTemplate<{
       const spinnerStyle = css`
         animation: ${spin} 1s linear infinite;
       `;
-      return <AiOutlineLoading className={spinnerStyle} />;
+      return <span className={spinnerStyle}><AiOutlineLoading /></span>;
     };
     const IconEllipsis = HiOutlineEllipsisVertical;
     viewSystem.renderer.register("icon-expanded", IconExpanded);

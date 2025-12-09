@@ -18,7 +18,7 @@ export const ShowCurrentSpacePagesOnly = createPlugin({
     spaceService
       .getFocusedSpace$()
       .pipe(
-        distinctUntilChanged((a, b) => a?.id === b?.id),
+        distinctUntilChanged<{ id?: string } | undefined>((a, b) => a?.id === b?.id),
         pairwise()
       )
       .subscribe(([s1, s2]) => {

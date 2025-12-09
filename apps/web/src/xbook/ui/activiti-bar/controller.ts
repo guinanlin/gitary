@@ -1,7 +1,7 @@
 import { EventKeys } from "@/constants/eventKeys";
 import { defineController } from "app-toolkit";
 import { createCustomReactBean } from "rx-bean";
-import { combineLatest } from "rxjs";
+import { combineLatest, Observable } from "rxjs";
 import { eventBus } from "xbook/services/eventBus";
 import { IActivityItem } from "xbook/ui/activiti-bar/types";
 import { CacheController, withCache } from "xbook/ui/services/cache-controller";
@@ -135,10 +135,10 @@ export const ActivityBarController = defineController(() => {
     }
   );
 
-  combineLatest([activeId$, activityList$]).subscribe(
+  combineLatest([activeId$, activityList$] as [Observable<string>, Observable<IActivityItem[]>]).subscribe(
     ([activeId, activityList]) => {
       if (activeId) {
-        const activity = activityList.find((a) => a.id === activeId);
+        const activity = activityList?.find((a) => a.id === activeId);
         if (!activity) {
           setActiveId("");
         } else {
