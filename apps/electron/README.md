@@ -31,6 +31,37 @@ pnpm dev:desktop
 pnpm dev:electron
 ```
 
+### 开发模式 vs 生产模式
+
+**开发模式判断逻辑：**
+
+应用通过以下条件判断是否为开发模式：
+
+```typescript
+const isDev = process.env.NODE_ENV === 'development' || (!app.isPackaged && process.env.ELECTRON_FORCE_PRODUCTION !== 'true');
+```
+
+- **开发模式** (`isDev = true`)：
+  - 加载 `http://localhost:5173`（本地开发服务器）
+  - 自动打开开发者工具
+  - 适用于日常开发调试
+
+- **生产模式** (`isDev = false`)：
+  - 加载 `https://gitdoc.st.datangyuan.cn/`（远程生产环境）
+  - 不打开开发者工具
+  - 适用于打包后的应用
+
+**在本地测试生产模式：**
+
+如果你想在本地开发环境中测试生产模式的行为（加载远程 URL），可以使用：
+
+```bash
+# 在 apps/electron 目录下
+pnpm dev:production
+```
+
+这个命令会强制使用生产模式，即使应用未打包也会加载远程 URL。
+
 ## 构建
 
 ### 构建 Electron 应用
@@ -43,14 +74,94 @@ pnpm build --filter @gitary/web
 pnpm build --filter @gitary/electron
 ```
 
-### 打包应用
+## 打包应用
 
-打包配置使用 `electron-builder`，配置文件位于 `electron-builder.yml`。
+Electron 应用支持两种打包模式：
+
+### 方案A：打包本地构建的 Web 应用（推荐，离线可用）
+
+这种方式会将 Web 应用的构建产物打包进 Electron，用户无需联网即可使用。
+
+**完整打包步骤：**
 
 ```bash
-# 在 apps/electron 目录下
-pnpm electron-builder
+# 1. 从项目根目录构建 Web 应用
+pnpm build --filter @gitary/web
+
+# 2. 构建 Electron 主进程代码
+cd apps/electron
+pnpm build
+
+# 3. 打包 Electron 应用（根据你的系统选择）
+# Windows:
+pnpm pack:win
+
+# macOS:
+pnpm pack:mac
+
+# Linux:
+pnpm pack:linux
+
+# 或者打包所有平台：
+pnpm pack
 ```
+
+**打包产物位置：**
+- Windows: `apps/electron/dist/Gitary Setup x.x.x.exe` (安装包) 和 `apps/electron/dist/Gitary x.x.x-win.zip` (便携版)
+- macOS: `apps/electron/dist/Gitary-x.x.x.dmg` (安装包) 和 `apps/electron/dist/Gitary-x.x.x-mac.zip` (压缩包)
+- Linux: `apps/electron/dist/Gitary-x.x.x.AppImage` (AppImage) 和 `apps/electron/dist/gitary_x.x.x_amd64.deb` (Debian 包)
+
+### 方案B：加载远程生产环境 URL
+
+如果你想让 Electron 应用加载远程生产环境的 URL（比如 `https://your-production-domain.com`），可以这样配置：
+
+**步骤1：设置环境变量**
+
+在打包时设置 `ELECTRON_REMOTE_URL` 环境变量：
+
+```bash
+# Windows (PowerShell)
+$env:ELECTRON_REMOTE_URL="https://your-production-domain.com"; pnpm pack:win
+
+# Windows (CMD)
+set ELECTRON_REMOTE_URL=https://your-production-domain.com && pnpm pack:win
+
+# macOS/Linux
+ELECTRON_REMOTE_URL=https://your-production-domain.com pnpm pack:mac
+```
+
+**步骤2：或者修改代码直接指定 URL**
+
+如果你想永久使用远程 URL，可以直接修改 `apps/electron/src/main/window.ts`：
+
+```typescript
+// 将生产环境的 URL 硬编码
+if (isDev) {
+  win.loadURL('http://localhost:5173');
+  win.webContents.openDevTools();
+} else {
+  // 直接使用远程 URL
+  win.loadURL('https://your-production-domain.com');
+}
+```
+
+**注意事项：**
+- 使用远程 URL 时，应用需要联网才能使用
+- 确保远程 URL 支持 CORS 和 Electron 的 User-Agent
+- 如果远程 URL 使用 HTTPS，确保证书有效
+
+### 打包配置说明
+
+打包配置位于 `electron-builder.yml`，主要配置项：
+
+- **appId**: 应用唯一标识符
+- **productName**: 应用显示名称
+- **directories.output**: 打包产物输出目录
+- **files**: 需要打包的文件列表（已包含 Web 构建产物）
+- **target**: 各平台的打包格式
+  - Windows: NSIS 安装包 + ZIP 便携版
+  - macOS: DMG 安装包 + ZIP 压缩包
+  - Linux: AppImage + DEB 包
 
 ## 文件系统集成
 

@@ -45,7 +45,11 @@
     "ext:gitary:pack": "pnpm -C browser-extension/gitary-companion run pack",
     "dev:web": "pnpm --filter @gitary/web dev",
     "dev:electron": "pnpm --filter @gitary/electron dev",
-    "dev:desktop": "node scripts/run-desktop-dev.mjs"
+    "dev:desktop": "node scripts/run-desktop-dev.mjs",
+    "pack:electron": "pnpm --filter @gitary/electron build && pnpm --filter @gitary/electron pack",
+    "pack:electron:win": "pnpm --filter @gitary/electron build && pnpm --filter @gitary/electron pack:win",
+    "pack:electron:mac": "pnpm --filter @gitary/electron build && pnpm --filter @gitary/electron pack:mac",
+    "pack:electron:linux": "pnpm --filter @gitary/electron build && pnpm --filter @gitary/electron pack:linux"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.1",

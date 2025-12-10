@@ -42,8 +42,6 @@ export default defineConfig({
         "json",
         "typescript", // covers both js/ts
       ],
-      // Do not expose global monaco by default
-      // globalAPI: false,
     }),
     // eslint()
   ],

@@ -26,8 +26,7 @@ export function createWindow(isDev: boolean): BrowserWindow {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
-    const indexPath = path.join(__dirname, '../../../web/dist/index.html');
-    win.loadFile(indexPath);
+    win.loadURL('https://gitdoc.st.datangyuan.cn/');
   }
 
   return win;

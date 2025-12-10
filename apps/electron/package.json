@@ -1,21 +1,27 @@
 {
   "name": "@gitary/electron",
   "version": "0.0.0",
+  "description": "Gitary Electron Desktop Application",
+  "author": "Gitary Team",
   "private": true,
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "tsc && electron .",
+    "dev:production": "cross-env NODE_ENV=production ELECTRON_FORCE_PRODUCTION=true tsc && electron .",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "generate-icons": "node scripts/generate-icons-auto.js"
-  },
-  "dependencies": {
-    "electron": "^28.0.0"
+    "generate-icons": "node scripts/generate-icons-auto.js",
+    "pack": "cross-env NODE_ENV=production electron-builder",
+    "pack:win": "cross-env NODE_ENV=production electron-builder --win",
+    "pack:mac": "cross-env NODE_ENV=production electron-builder --mac",
+    "pack:linux": "cross-env NODE_ENV=production electron-builder --linux"
   },
   "devDependencies": {
     "@types/node": "^20.5.6",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "electron-icon-maker": "^0.0.5",
     "typescript": "^5.0.2"
