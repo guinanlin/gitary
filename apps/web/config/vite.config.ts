@@ -8,10 +8,16 @@ import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");
+const projectRoot = resolve(__dirname, "../../..");
+const isPreview = process.argv.includes("preview") || process.env.VITE_PREVIEW === "true";
 
 console.log("dependencies", dependencies);
+console.log("isPreview:", isPreview, "projectRoot:", projectRoot);
+console.log("__dirname:", __dirname);
+console.log("dist path:", resolve(projectRoot, "dist"));
+
 export default defineConfig({
-  root: resolve(__dirname, ".."),
+  root: projectRoot,
   base: "/",
   plugins: [
     react(),
@@ -95,12 +101,17 @@ export default defineConfig({
   },
   build: {
     minify: "esbuild",
-    outDir: "../../dist",
+    outDir: resolve(projectRoot, "dist"),
     rollupOptions: {
       input: resolve(__dirname, "../index.html"),
       output: {
         manualChunks: renderChunksWithStrategy(dependencies),
       },
     },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    strictPort: false,
   },
 });

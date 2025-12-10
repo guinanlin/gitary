@@ -7,7 +7,7 @@
     "dev": "vite --config config/vite.config.ts",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --project tsconfig.json && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --config config/vite.config.ts",
     "build:fast": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --config config/vite.config.ts",
-    "preview": "vite preview --config config/vite.config.ts",
+    "preview": "vite preview --config config/vite.config.ts --host ${HOST:-0.0.0.0} --port ${PORT:-3000}",
     "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.json",
     "test": "jest --config config/jest.config.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
