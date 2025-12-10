@@ -1,9 +1,9 @@
 {
-  "name": "gitary-app",
+  "name": "tydoc",
   "private": true,
   "version": "0.0.0",
   "license": "MIT",
-  "description": "Notion-like editing + Excalidraw drawing for your Git repositories - Bring Notion-style powerful editing experience and Excalidraw drawing capabilities to your GitHub/Gitee/GitCode repositories",
+  "description": "tydoc",
   "keywords": [
     "notion-like",
     "notion-style",
@@ -32,7 +32,7 @@
     "lint:fix:all": "turbo lint -- --fix",
     "test": "turbo test",
     "preview": "turbo preview",
-    "clean": "turbo clean && rm -rf node_modules",
+    "clean": "turbo clean && rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "verify": "turbo lint -- --fix && turbo build",
     "git:update": "git add . && git commit -m \" update somthing \" &&  git push",
     "deploy": "turbo build --filter=@gitary/web && pnpm oss:upload",
@@ -41,7 +41,10 @@
     "deploy:pages": "turbo build --filter=@gitary/web && gh-pages -d dist -b deploy",
     "ext:gitary:build": "pnpm -C browser-extension/gitary-companion run pack",
     "ext:gitary:watch": "pnpm -C browser-extension/gitary-companion run build:watch",
-    "ext:gitary:pack": "pnpm -C browser-extension/gitary-companion run pack"
+    "ext:gitary:pack": "pnpm -C browser-extension/gitary-companion run pack",
+    "dev:web": "pnpm --filter @gitary/web dev",
+    "dev:electron": "pnpm --filter @gitary/electron dev",
+    "dev:desktop": "node scripts/run-desktop-dev.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.1",

@@ -1,10 +1,13 @@
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
 import { dependencies } from "../package.json";
 import { renderChunksWithStrategy } from "./splitChunks";
 import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = resolve(__filename, "..");
 
 console.log("dependencies", dependencies);
 export default defineConfig({

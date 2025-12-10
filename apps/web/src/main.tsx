@@ -6,6 +6,7 @@ import { addGiteeSpace } from "@/plugins/space/addSpace";
 import displaySpaces from "@/plugins/space/displaySpaces";
 import { folderTreeService } from "@/plugins/space/folderTreeService";
 import { AddFileSystemProviderForEachSpace } from "@/plugins/space/provideFileSystems";
+import { ElectronFileSystemPlugin } from "@/plugins/electron/electron-file-system-plugin";
 import checkUrlParamAndQuickOpen from "@/plugins/utilities/checkUrlParamAndQuickOpen";
 import clearLocalCache from "@/plugins/utilities/clearLocalCache";
 import theme from "@/plugins/utilities/theme";
@@ -31,6 +32,7 @@ xbook.pluginService.use([
   /** basic */
   folderTreeService,
   AddFileSystemProviderForEachSpace,
+  ElectronFileSystemPlugin,
 
   /** features */
   features,
