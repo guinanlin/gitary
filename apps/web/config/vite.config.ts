@@ -8,7 +8,7 @@ import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");
-const projectRoot = resolve(__dirname, "../..");
+const projectRoot = resolve(__dirname, "../../..");
 const isPreview = process.argv.includes("preview") || process.env.VITE_PREVIEW === "true";
 
 console.log("dependencies", dependencies);
