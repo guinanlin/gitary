@@ -32,10 +32,12 @@ gitary/
 ├── scripts/                  # 🔧 脚本目录
 │   ├── migrate-*.js         # 迁移脚本
 │   ├── update-imports.js    # 导入路径更新脚本
+│   ├── run-desktop-dev.mjs  # 桌面开发环境启动脚本
 │   └── ...
 │
 ├── apps/                     # 🚀 应用目录
 │   ├── web/                 # Web 主应用
+│   ├── electron/            # Electron 桌面应用
 │   └── browser-extension/   # 浏览器扩展
 │
 └── packages/                 # 📦 包目录
@@ -128,6 +130,8 @@ apps/web/
 │   │   ├── migrations/       # 数据迁移插件
 │   │   ├── services/         # 插件服务
 │   │   ├── space/            # Space 相关插件
+│   │   ├── electron/         # Electron 相关插件
+│   │   │   └── electron-file-system-plugin.tsx  # Electron 文件系统插件
 │   │   ├── utilities/        # 工具插件
 │   │   └── widgets/          # 小部件插件
 │   │
@@ -137,6 +141,7 @@ apps/web/
 │   │   ├── auth.service.ts
 │   │   ├── space.service.tsx
 │   │   ├── opener.service.ts
+│   │   ├── electron-file-system.provider.ts  # Electron 文件系统提供者
 │   │   └── ...
 │   │
 │   ├── toolkit/              # 工具层（Toolkit Layer）
@@ -148,7 +153,8 @@ apps/web/
 │   │
 │   ├── types/                # 应用类型定义
 │   │   ├── index.ts
-│   │   └── resume.ts
+│   │   ├── resume.ts
+│   │   └── electron.d.ts     # Electron API 类型定义
 │   │
 │   └── xbook/                # xbook 框架核心
 │       ├── common/
@@ -176,7 +182,52 @@ apps/web/
     └── ...
 ```
 
-### 3.2 apps/browser-extension/ - 浏览器扩展
+### 3.2 apps/electron/ - Electron 桌面应用
+
+```
+apps/electron/
+├── package.json              # Electron 应用配置
+├── tsconfig.json             # TypeScript 配置
+├── electron-builder.yml      # Electron Builder 打包配置
+├── README.md                 # Electron 应用说明
+│
+├── src/                      # 📝 源码目录
+│   ├── main/                # 主进程代码
+│   │   ├── main.ts          # 主进程入口
+│   │   ├── window.ts        # 窗口管理
+│   │   ├── menu.ts          # 菜单配置
+│   │   └── ipc-handlers.ts  # IPC 处理器（文件系统操作）
+│   └── preload/             # Preload 脚本
+│       └── preload.ts       # 安全桥接（暴露 electronAPI）
+│
+├── resources/                # 🎨 资源文件
+│   └── icons/               # 应用图标
+│       ├── icon.png         # Linux 图标（512x512）
+│       ├── icon.ico         # Windows 图标
+│       ├── icon.icns         # macOS 图标
+│       └── icon-512x512.png  # 源图标文件
+│
+├── scripts/                  # 🔧 脚本目录
+│   ├── generate-icons.js           # 图标生成说明脚本
+│   └── generate-icons-auto.js      # 自动图标生成脚本
+│
+└── dist/                     # 📦 构建产物
+    ├── main/                 # 主进程编译结果
+    └── preload/              # Preload 脚本编译结果
+```
+
+**主要功能：**
+- 桌面应用窗口管理
+- 本地文件系统访问（通过 IPC）
+- 安全的主进程/渲染进程通信
+- 跨平台支持（Windows、macOS、Linux）
+
+**技术栈：**
+- Electron 28+
+- TypeScript
+- electron-builder（打包工具）
+
+### 3.3 apps/browser-extension/ - 浏览器扩展
 
 ```
 apps/browser-extension/
@@ -305,6 +356,8 @@ packages/app-toolkit/
 - **子目录**：
   - `core/` - 核心插件
   - `space/` - Space 相关插件
+  - `electron/` - Electron 相关插件
+    - `electron-file-system-plugin.tsx` - Electron 文件系统插件（检测 Electron 环境并注册本地文件系统提供者）
   - `widgets/` - 小部件插件
   - `migrations/` - 数据迁移插件
   - `utilities/` - 工具插件
@@ -318,6 +371,7 @@ packages/app-toolkit/
   - `space.service.tsx` - Space 服务
   - `opener.service.ts` - 打开器服务
   - `search/` - 搜索服务
+  - `electron-file-system.provider.ts` - Electron 文件系统提供者（实现 FileSystemProvider 接口，通过 IPC 访问本地文件系统）
 
 ### 5.4 工具层（Toolkit Layer）- `src/toolkit/`
 
@@ -336,6 +390,30 @@ packages/app-toolkit/
   - `ui/` - 框架 UI 组件
   - `hooks/` - 框架 Hooks
   - `global-sidecar/` - 全局侧边栏
+
+### 5.6 Electron 应用架构
+
+Electron 应用采用主进程/渲染进程分离架构：
+
+- **主进程** (`apps/electron/src/main/`)：
+  - `main.ts` - 应用入口，初始化窗口和菜单
+  - `window.ts` - 窗口管理，创建和管理 BrowserWindow
+  - `menu.ts` - 应用菜单配置（支持中文）
+  - `ipc-handlers.ts` - IPC 处理器，处理文件系统操作请求
+
+- **Preload 脚本** (`apps/electron/src/preload/`)：
+  - `preload.ts` - 安全桥接，通过 `contextBridge` 暴露 `electronAPI` 到渲染进程
+
+- **文件系统集成**：
+  - 通过 `ElectronFileSystemProvider` 实现 `FileSystemProvider` 接口
+  - 使用 `local://` URI scheme 访问本地文件系统
+  - 通过 IPC 在主进程和渲染进程间安全通信
+  - 支持完整的文件系统操作（读取、写入、删除、重命名等）
+
+- **安全配置**：
+  - `nodeIntegration: false` - 禁用 Node.js 集成
+  - `contextIsolation: true` - 启用上下文隔离
+  - 通过 preload 脚本安全暴露 API
 
 ## 六、路径别名配置
 
@@ -429,7 +507,28 @@ pnpm turbo build --force
 pnpm turbo build --summarize
 ```
 
-### 7.3 浏览器扩展命令
+### 7.5 Electron 桌面应用命令
+
+```bash
+# 启动桌面开发环境（同时启动 Web 服务器和 Electron）
+pnpm dev:desktop
+
+# 单独启动 Electron（需要 Web 服务器已运行）
+pnpm dev:electron
+
+# 构建 Electron 应用
+pnpm build --filter @gitary/electron
+
+# 生成应用图标
+cd apps/electron
+pnpm generate-icons
+
+# 打包 Electron 应用（在 apps/electron 目录下）
+cd apps/electron
+pnpm electron-builder
+```
+
+### 7.6 浏览器扩展命令
 
 ```bash
 # 构建扩展
@@ -462,6 +561,12 @@ apps/web
 ├── rx-bean (workspace:*)
 ├── rx-nested-bean (workspace:*)
 └── 其他外部依赖...
+
+apps/electron
+├── electron (外部依赖)
+├── electron-builder (devDependency)
+└── electron-icon-maker (devDependency)
+└── 独立包，无 workspace 依赖
 
 packages/ai-assistant-core
 └── 独立包，无 workspace 依赖
@@ -524,12 +629,13 @@ Turbo 自动分析包依赖关系，确保构建顺序正确：
 
 ### 10.2 核心功能
 
-- **文件系统**：支持多种文件系统提供者（IndexedDB、Git、Weiyun）
+- **文件系统**：支持多种文件系统提供者（IndexedDB、Git、Weiyun、Electron 本地文件系统）
 - **AI 助手**：集成 AI 功能，支持工具调用
 - **插件系统**：可插拔的插件架构
 - **国际化**：支持多语言（中文、英文）
 - **搜索**：全文搜索功能
 - **Git 集成**：支持 GitHub、Gitee、GitCode
+- **桌面应用**：Electron 桌面应用，支持本地文件系统访问
 
 ## 十一、项目状态
 
@@ -538,11 +644,14 @@ Turbo 自动分析包依赖关系，确保构建顺序正确：
 - ✅ 已实现 Monorepo 架构
 - ✅ 集成 Turbo 构建系统，支持并行构建和智能缓存
 - ✅ 应用代码位于 `apps/web/`
+- ✅ Electron 桌面应用位于 `apps/electron/`
 - ✅ 浏览器扩展位于 `apps/browser-extension/`
 - ✅ 配置文件集中在 `apps/web/config/`
 - ✅ 第三方库封装在 `apps/web/libs/`
 - ✅ 采用分层架构（app/plugin/service/toolkit）
 - ✅ Turbo 自动管理包依赖关系和构建顺序
+- ✅ Electron 应用支持本地文件系统访问
+- ✅ 通过插件系统集成 Electron 文件系统提供者
 
 ### 11.2 与未来规划的差异
 
@@ -610,8 +719,8 @@ Turbo 自动分析 `package.json` 中的 workspace 依赖，确保：
 
 ---
 
-**文档版本**：v1.1  
+**文档版本**：v1.2  
 **创建日期**：2025-01-27  
 **最后更新**：2025-01-27  
-**基于项目实际结构生成，已集成 Turbo 构建系统**
+**基于项目实际结构生成，已集成 Turbo 构建系统和 Electron 桌面应用**
 
