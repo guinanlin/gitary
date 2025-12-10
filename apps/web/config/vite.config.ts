@@ -101,7 +101,7 @@ export default defineConfig({
   },
   build: {
     minify: "esbuild",
-    outDir: isPreview ? resolve(projectRoot, "dist") : resolve(__dirname, "../../dist"),
+    outDir: resolve(projectRoot, "dist"),
     rollupOptions: {
       input: resolve(__dirname, "../index.html"),
       output: {
