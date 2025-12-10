@@ -22,9 +22,10 @@
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
-    "build": "turbo build",
+    "build": "turbo build --filter=@gitary/web",
     "build:all": "turbo build",
     "build:fast": "turbo build --filter=@gitary/web",
+    "start": "cd apps/web && vite preview --host 0.0.0.0 --port ${PORT:-3000}",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "lint:fix": "turbo lint -- --fix",
