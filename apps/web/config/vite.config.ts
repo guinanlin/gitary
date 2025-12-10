@@ -8,7 +8,7 @@ import monacoEditorPluginRaw from "vite-plugin-monaco-editor";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");
-const projectRoot = resolve(__dirname, "../../..");
+const projectRoot = resolve(__dirname, "../..");
 const isPreview = process.argv.includes("preview") || process.env.VITE_PREVIEW === "true";
 
 console.log("dependencies", dependencies);
@@ -17,7 +17,7 @@ console.log("__dirname:", __dirname);
 console.log("dist path:", resolve(projectRoot, "dist"));
 
 export default defineConfig({
-  root: projectRoot,
+  root: isPreview ? projectRoot : resolve(__dirname, ".."),
   base: "/",
   plugins: [
     react(),
@@ -101,7 +101,7 @@ export default defineConfig({
   },
   build: {
     minify: "esbuild",
-    outDir: resolve(projectRoot, "dist"),
+    outDir: isPreview ? resolve(projectRoot, "dist") : resolve(__dirname, "../../dist"),
     rollupOptions: {
       input: resolve(__dirname, "../index.html"),
       output: {
