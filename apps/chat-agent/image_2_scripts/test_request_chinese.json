@@ -1,0 +1,13 @@
+{
+  "app_name": "image_2_scripts",
+  "user_id": "test_user_001",
+  "session_id": "YOUR_SESSION_ID_HERE",
+  "new_message": {
+    "role": "user",
+    "parts": [
+      {
+        "text": "你好，请介绍一下你自己"
+      }
+    ]
+  }
+}
