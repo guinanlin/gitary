@@ -1,0 +1,16 @@
+{
+  "app_name": "image_2_scripts",
+  "user_id": "test_user_001",
+  "session_id": "YOUR_SESSION_ID_HERE",
+  "new_message": {
+    "role": "user",
+    "parts": [
+      {
+        "text": "https://pic1.imgdb.cn/item/690dd3843203f7be00e1c52b.jpg"
+      },
+      {
+        "text": "用一句话描述这张图片"
+      }
+    ]
+  }
+}

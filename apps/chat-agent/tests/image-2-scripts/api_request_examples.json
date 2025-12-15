@@ -1,0 +1,162 @@
+{
+  "examples": {
+    "simple_text": {
+      "app_name": "image_2_scripts",
+      "user_id": "test_user_001",
+      "session_id": "eced6b7f-f338-4500-8ad7-44f4e9dd3d00",
+      "new_message": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "hello"
+          }
+        ]
+      }
+    },
+    "chinese_text": {
+      "app_name": "image_2_scripts",
+      "user_id": "test_user_001",
+      "session_id": "eced6b7f-f338-4500-8ad7-44f4e9dd3d00",
+      "new_message": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "你好，请介绍一下你自己"
+          }
+        ]
+      }
+    },
+    "image_with_text": {
+      "app_name": "image_2_scripts",
+      "user_id": "test_user_001",
+      "session_id": "eced6b7f-f338-4500-8ad7-44f4e9dd3d00",
+      "new_message": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "https://pic1.imgdb.cn/item/690dd3843203f7be00e1c52b.jpg"
+          },
+          {
+            "text": "用一句话描述这张图片"
+          }
+        ]
+      }
+    },
+    "multiple_parts": {
+      "app_name": "image_2_scripts",
+      "user_id": "test_user_001",
+      "session_id": "eced6b7f-f338-4500-8ad7-44f4e9dd3d00",
+      "new_message": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "请分析这张图片"
+          },
+          {
+            "text": "https://example.com/image.jpg"
+          },
+          {
+            "text": "并生成相应的代码"
+          }
+        ]
+      }
+    }
+  },
+  "schema": {
+    "description": "RunAgentRequest - 运行 Agent 的请求格式",
+    "required_fields": [
+      "app_name",
+      "user_id",
+      "session_id",
+      "new_message"
+    ],
+    "fields": {
+      "app_name": {
+        "type": "string",
+        "required": true,
+        "description": "Agent 应用名称，例如: image_2_scripts",
+        "example": "image_2_scripts"
+      },
+      "user_id": {
+        "type": "string",
+        "required": true,
+        "description": "用户 ID，用于标识不同用户",
+        "example": "test_user_001"
+      },
+      "session_id": {
+        "type": "string",
+        "required": true,
+        "description": "会话 ID，从创建会话端点获取，用于保持对话上下文",
+        "example": "eced6b7f-f338-4500-8ad7-44f4e9dd3d00"
+      },
+      "new_message": {
+        "type": "object",
+        "required": true,
+        "description": "新消息内容",
+        "properties": {
+          "role": {
+            "type": "string",
+            "required": true,
+            "description": "消息角色",
+            "enum": ["user", "assistant"],
+            "example": "user"
+          },
+          "parts": {
+            "type": "array",
+            "required": true,
+            "description": "消息部分数组",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "required": true,
+                  "description": "文本内容或图片 URL（HTTP/HTTPS）",
+                  "example": "hello"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "response_examples": {
+    "success_200": [
+      {
+        "modelVersion": "deepseek-ai/deepseek-vl2",
+        "content": {
+          "parts": [
+            {
+              "text": "Hello! How can I help you today?"
+            }
+          ],
+          "role": "model"
+        },
+        "partial": false,
+        "invocationId": "e-a5d8c8dc-c99f-4517-90d8-928835810b2c",
+        "author": "image_2_scripts",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "437cb2d1-5113-40b5-9a0c-d7e359116bb1",
+        "timestamp": 1765753650.17553
+      }
+    ],
+    "error_422": {
+      "detail": [
+        {
+          "loc": ["body", "session_id"],
+          "msg": "field required",
+          "type": "value_error.missing"
+        }
+      ]
+    },
+    "error_404": {
+      "detail": "Session not found"
+    }
+  }
+}
