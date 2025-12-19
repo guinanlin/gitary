@@ -22,3 +22,5 @@ def setup_middleware(app: FastAPI):
                 "body": str(exc.body) if hasattr(exc, 'body') else None
             }
         )
+
+

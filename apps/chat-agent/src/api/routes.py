@@ -340,3 +340,5 @@ def setup_routes(app: FastAPI, agents_dir: Path):
             raise HTTPException(status_code=500, detail=f"Error running agent stream: {str(e)}")
 
     app.mount("/adk", adk_app)
+
+

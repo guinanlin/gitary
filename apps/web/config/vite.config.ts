@@ -32,6 +32,7 @@ export default defineConfig({
             "json",
             "typescript",
           ],
+          publicPath: "./",
         })
       : (monacoEditorPluginRaw as any)({
       // Keep base/editor + the most commonly used language workers
@@ -42,6 +43,7 @@ export default defineConfig({
         "json",
         "typescript", // covers both js/ts
       ],
+      publicPath: "./",
     }),
     // eslint()
   ],
@@ -99,7 +101,7 @@ export default defineConfig({
   },
   build: {
     minify: "esbuild",
-    outDir: resolve(projectRoot, "dist"),
+    outDir: isPreview ? "dist" : "../../dist",
     rollupOptions: {
       input: resolve(__dirname, "../index.html"),
       output: {

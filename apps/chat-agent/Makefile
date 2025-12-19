@@ -18,21 +18,21 @@ setup:
 		curl -LsSf https://astral.sh/uv/install.sh | sh || pip install uv; \
 	fi
 	@echo "Syncing dependencies with uv..."
-	uv sync --no-install-project
+	UV_INDEX_URL=https://pypi.org/simple uv sync --no-install-project
 	@echo "✅ Setup complete!"
 	@echo "⚠️  Don't forget to:"
 	@echo "   1. Copy src/agents/hello_agent/.env.example to src/agents/hello_agent/.env"
 	@echo "   2. Add your GOOGLE_API_KEY to src/agents/hello_agent/.env"
 
 install:
-	uv sync --no-install-project
+	UV_INDEX_URL=https://pypi.org/simple uv sync --no-install-project
 
 run:
-	@if [ ! -f "src/agents/hello_agent/.env" ]; then \
-		echo "⚠️  Warning: src/agents/hello_agent/.env not found!"; \
-		echo "Please copy src/agents/hello_agent/.env.example to src/agents/hello_agent/.env and add your GOOGLE_API_KEY"; \
-		exit 1; \
-	fi
+	# @if [ ! -f "src/agents/hello_agent/.env" ]; then \
+	# 	echo "⚠️  Warning: src/agents/hello_agent/.env not found!"; \
+	# 	echo "Please copy src/agents/hello_agent/.env.example to src/agents/hello_agent/.env and add your GOOGLE_API_KEY"; \
+	# 	exit 1; \
+	# fi
 	uv run python -m src.main
 
 test:
@@ -61,7 +61,7 @@ dev:
 				echo "   - $$(basename $$agent)"; \
 			fi; \
 		done; \
-		cd $$AGENT_DIR && uv run adk web --port $$ADK_PORT; \
+		cd $$AGENT_DIR && UV_INDEX_URL=https://pypi.org/simple uv run adk web --port $$ADK_PORT; \
 	else \
 		if [ ! -f "src/agents/hello_agent/.env" ]; then \
 			echo "⚠️  Warning: src/agents/hello_agent/.env not found!"; \
@@ -82,7 +82,7 @@ dev:
 		done; \
 		echo "💡 To start only a specific category, use: make dev CATEGORY=<category>"; \
 		echo "💡 Available categories: general, business, content"; \
-		cd src/agents && uv run adk web --port $$ADK_PORT; \
+		cd src/agents && UV_INDEX_URL=https://pypi.org/simple uv run adk web --port $$ADK_PORT; \
 	fi
 
 web: dev

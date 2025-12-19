@@ -1,7 +1,7 @@
 {
-    "name": "Gitary",
-    "short_name": "Gitary",
-    "description": "Notion-like editing + Excalidraw drawing for your Git repositories - 类 Notion 编辑 + Excalidraw 画图，运行在你的 Git 仓库上",
+    "name": "dtylab",
+    "short_name": "dtylab",
+    "description": "dtylab is a platform for building and deploying AI agents.",
     "display": "standalone",
     "start_url": "/",
     "scope": "/",

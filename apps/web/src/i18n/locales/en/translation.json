@@ -336,9 +336,9 @@
     "startWriting": "Start writing your first thought..."
   },
   "meta": {
-    "title": "Gitary - Notion-like editing + Excalidraw drawing for your Git repositories",
-    "description": "Bring Notion-style powerful editing experience and Excalidraw drawing capabilities to your Git repositories. Support GitHub, Gitee, GitCode. Zero intermediate storage, complete data ownership. Notion-like editing + Excalidraw drawing + Git's data control = perfect knowledge management.",
-    "keywords": "Notion-like,Notion alternative,Notion-style,Git notes,GitHub notes,Gitee notes,GitCode notes,Markdown editor,knowledge management,version control,open source notes,data ownership,Git knowledge base"
+    "title": "dtylab - a platform for building and deploying AI agents",
+    "description": "dtylab is a platform for building and deploying AI agents.",
+    "keywords": "AI agents,AI agent platform,AI agent development,AI agent deployment,AI agent management,AI agent training,AI agent evaluation,AI agent monitoring,AI agent optimization,AI agent automation,AI agent integration"
   },
   "search": {
     "placeholder": "Search files or content…",
