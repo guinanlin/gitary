@@ -1,7 +1,7 @@
 import { authService } from "@/services/auth.service";
 import { IAuthProvider } from "@/services/auth.service.interface";
 import { updateSearchParams } from "@/toolkit/utils/url";
-import { GithubAuthInfo } from "libs/github-api";
+import { GithubAuthInfo } from "@dty/git-provider";
 import history from "xbook/common/history";
 import xbook from "xbook/index";
 

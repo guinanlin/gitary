@@ -9,7 +9,7 @@ import {
   getGitcodeAccessToken,
   getGitcodeLoginUrl,
   refreshGitcodeAccessToken,
-} from "libs/gitcode-api/gitcode-client";
+} from "@dty/git-provider";
 import { createPlugin } from "xbook/common/createPlugin";
 
 export default createPlugin({

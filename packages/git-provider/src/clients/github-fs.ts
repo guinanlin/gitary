@@ -1,8 +1,5 @@
-import {
-  GiteeClient,
-  createGithubClient,
-  refreshGithubAccessToken,
-} from "./github-client";
+import { createGithubClient, refreshGithubAccessToken } from "./github-client";
+import type { GiteeClient } from "../types/compat/git-client.types";
 const wrapPromise = (func) => {
   return (...args) => {
     return new Promise((resolve: Function, reject) => {
@@ -176,14 +173,6 @@ const buildGiteeFS = ({
     unlink: wrapPromise(unlink),
     readFile: wrapPromise(readFile),
     stat: wrapPromise(stat),
-    // exists: async (path:string)=>{
-    //   return new Promise((resolve, reject) =>{
-    //     exists(path,(e)=>{
-    //       if(e)resolve(path);
-    //       else reject(path);
-    //     })
-    //   })
-    // },
   };
   const fs = {
     mkdir,
@@ -212,7 +201,7 @@ export interface GithubAuthInfo {
   scope: string;
 }
 
-export const createGiteeFS = async ({
+export const createGithubFS = async ({
   accessToken,
   owner,
   repo,
@@ -226,23 +215,23 @@ export const createGiteeFS = async ({
   return handle;
 };
 
-export type GiteeFS = Parameters<
+export type GithubFS = Parameters<
   Exclude<
-    Parameters<ReturnType<typeof createGiteeFS>["then"]>[0],
+    Parameters<ReturnType<typeof createGithubFS>["then"]>[0],
     undefined | null
   >
 >[0];
 
-export const validateFS = async (fs: GiteeFS) => {
+export const validateGithubFS = async (fs: GithubFS) => {
   let isValid;
   try {
     let files = await fs.fsPromises.readdir("/");
     isValid = true;
-    console.log("Validating GiteeFS successfully.");
+    console.log("Validating GithubFS successfully.");
   } catch (e) {
     isValid = false;
     console.log(
-      "Validating GiteeFS failed: " + (e instanceof Error ? e.message : e)
+      "Validating GithubFS failed: " + (e instanceof Error ? e.message : e)
     );
   }
   return isValid;

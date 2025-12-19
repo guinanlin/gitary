@@ -1,5 +1,5 @@
-import { FileItem, FileStats, FileSystem, FileSystemOptions } from '../types/fs';
-import { GitProvider } from '../types/git-client';
+import type { FileItem, FileStats, FileSystem, FileSystemOptions } from '../types/fs';
+import type { GitProvider } from '../types/git-client';
 
 /**
  * Git文件系统

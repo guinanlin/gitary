@@ -5,7 +5,7 @@ import { DataStore, createDataStore } from "@/toolkit/factories/dataStore";
 import { AnyFunction } from "@/toolkit/types";
 import { SpaceDef } from "@/toolkit/types/space";
 import { createObservableFromExternalStore } from "@/toolkit/utils/rx-utils";
-import { refreshGiteeAccessToken } from "libs/gitee-api";
+import { refreshGiteeAccessToken } from "@dty/git-provider";
 import { useEffect, useState } from "react";
 import { switchMap } from "rxjs";
 import xbook from "xbook/index";

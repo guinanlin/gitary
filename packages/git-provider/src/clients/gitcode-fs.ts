@@ -1,8 +1,8 @@
 import {
-  GiteeClient,
-  createGiteeClient,
-  refreshGiteeAccessToken,
-} from "./gitee-client";
+  type GiteeClient,
+  createGitcodeClient,
+  refreshGitcodeAccessToken,
+} from "./gitcode-client";
 const wrapPromise = (func) => {
   return (...args) => {
     return new Promise((resolve: Function, reject) => {
@@ -14,7 +14,7 @@ const wrapPromise = (func) => {
   };
 };
 
-const buildGiteeFS = ({
+const buildGitcodeFS = ({
   owner,
   repo,
   client,
@@ -177,14 +177,6 @@ const buildGiteeFS = ({
     unlink: wrapPromise(unlink),
     readFile: wrapPromise(readFile),
     stat: wrapPromise(stat),
-    // exists: async (path:string)=>{
-    //   return new Promise((resolve, reject) =>{
-    //     exists(path,(e)=>{
-    //       if(e)resolve(path);
-    //       else reject(path);
-    //     })
-    //   })
-    // },
   };
   const fs = {
     mkdir,
@@ -212,37 +204,37 @@ interface AuthInfo {
   scope: string;
 }
 
-export const createGiteeFS = async ({
+export const createGitcodeFS = async ({
   accessToken,
   owner,
   repo,
   refreshToken,
 }) => {
-  if (refreshGiteeAccessToken) {
-    accessToken = await refreshGiteeAccessToken({ refreshToken });
+  if (refreshGitcodeAccessToken) {
+    accessToken = await refreshGitcodeAccessToken({ refreshToken });
   }
-  const client = createGiteeClient({ getAccessToken: () => accessToken });
-  const handle = buildGiteeFS({ client, owner, repo });
+  const client = createGitcodeClient({ getAccessToken: () => accessToken });
+  const handle = buildGitcodeFS({ client, owner, repo });
   return handle;
 };
 
-export type GiteeFS = Parameters<
+export type GitcodeFS = Parameters<
   Exclude<
-    Parameters<ReturnType<typeof createGiteeFS>["then"]>[0],
+    Parameters<ReturnType<typeof createGitcodeFS>["then"]>[0],
     undefined | null
   >
 >[0];
 
-export const validateFS = async (fs: GiteeFS) => {
+export const validateFS = async (fs: GitcodeFS) => {
   let isValid;
   try {
     let files = await fs.fsPromises.readdir("/");
     isValid = true;
-    console.log("Validating GiteeFS successfully.");
+    console.log("Validating GitcodeFS successfully.");
   } catch (e) {
     isValid = false;
     console.log(
-      "Validating GiteeFS failed: " + (e instanceof Error ? e.message : e)
+      "Validating GitcodeFS failed: " + (e instanceof Error ? e.message : e)
     );
   }
   return isValid;

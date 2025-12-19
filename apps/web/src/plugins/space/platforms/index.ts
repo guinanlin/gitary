@@ -3,9 +3,7 @@ import { IndexedDBFileSystemProvider } from "@/services/indexed-db-file-system.p
 import { WeiyunFileSystemProvider } from "@/services/weiyun-file-system.provider";
 import { WeiyunClient } from "@/services/weiyun-client";
 import { spacePlatformRegistry } from "@/services/space-platform.registry";
-import { createGiteeClient } from "libs/gitee-api";
-import { createGithubClient } from "libs/github-api";
-import { createGitcodeClient } from "libs/gitcode-api/gitcode-client";
+import { createGiteeClient, createGithubClient, createGitcodeClient } from "@dty/git-provider";
 import { createPlugin } from "xbook/common/createPlugin";
 
 export const platformsPlugin = createPlugin({

@@ -1,8 +1,7 @@
 import { Base64 } from "js-base64";
-import { FileHelper, GiteeClient, Method } from "libs/git-client.types";
-import { GithubAuthInfo } from "libs/github-api";
+import { FileHelper, GiteeClient, Method } from "../types/compat/git-client.types";
+import type { GithubAuthInfo } from "./github-fs";
 import axios from "redaxios";
-
 
 export interface IGiteeUser {
   avatar_url: string;
@@ -62,16 +61,22 @@ export const getGiteeAccessToken = async ({
   clientId,
   clientSecret,
   redirectUri,
+}: {
+  code: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
 }): Promise<GithubAuthInfo> => {
   const url = `https://gitee.com/oauth/token?grant_type=authorization_code&code=${code}&client_id=${clientId}&redirect_uri=${redirectUri}&client_secret=${clientSecret}`;
   console.log("url:", url);
   const res = await axios.post(url);
-  // store.set("gitee", res.data);
   return res.data;
 };
 
 export const refreshGiteeAccessToken = async ({
   refreshToken,
+}: {
+  refreshToken: string;
 }): Promise<{
   access_token: string;
   created_at: number;
@@ -82,10 +87,9 @@ export const refreshGiteeAccessToken = async ({
 }> => {
   const url = `https://gitee.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}`;
   const res = await axios.post(url);
-  // store.set("gitee", res.data);
   return res.data;
 };
-export const getUrlParam = (name: string) => {
+export const getGiteeUrlParam = (name: string) => {
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
   return urlParams.get(name);
@@ -148,10 +152,6 @@ export const createGiteeClient = ({
 }: {
   getAccessToken: () => string | undefined;
 }): GiteeClient => {
-  // let access_token = accessToken;
-  // const setAccessToken = (accessToken) => {
-  //   access_token = accessToken;
-  // };
   const submitForm = async (url, data, method: Method = "POST") => {
     const formData = new FormData();
     Object.keys(data).forEach((key) => {
@@ -161,7 +161,6 @@ export const createGiteeClient = ({
       method: method as any,
       url,
       data: formData,
-      // headers: { "Content-Type": "multipart/form-data" },
     } as any);
   };
 
@@ -316,14 +315,10 @@ export const createGiteeClient = ({
       const r = await getPathInfo({ owner, repo, path });
       const data: any = r.data;
 
-      // When requesting a directory, Gitee returns an array without a content field.
-      // Return the raw data and let the caller handle the error or processing.
       if (!data || Array.isArray(data)) {
         return r as any;
       }
 
-      // Some edge cases may not have a content field (e.g., empty files).
-      // Avoid passing undefined to Base64.decode / toUint8Array.
       if (typeof data.content !== "string") {
         return r as any;
       }
@@ -346,9 +341,9 @@ export const createGiteeClient = ({
 export default {
   refreshAccessToken: refreshGiteeAccessToken,
   getGiteeAccessToken,
-  getUrlParam,
+  getUrlParam: getGiteeUrlParam,
   getLoginUrl: getGiteeLoginUrl,
   createGiteeClient,
 };
 
-export type { GiteeClient } from "../git-client.types";
+export type { GiteeClient } from "../types/compat/git-client.types";

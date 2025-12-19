@@ -1,4 +1,4 @@
-import { RepoResponse } from "libs/repo";
+import { RepoResponse } from "./repo";
 
 export type Method =
   | "get"
@@ -122,5 +122,4 @@ export type GiteeClient = {
       refs?: string;
     }) => Promise<ApiResponse<any>>;
   };
-  // setAccessToken: (accessToken: any) => void;
 };

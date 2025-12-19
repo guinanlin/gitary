@@ -5,9 +5,7 @@ import { spaceHelper } from "@/helpers/space.helper";
 import { spaceService } from "@/services/space.service";
 import { authService } from "@/services/auth.service";
 import { spacePlatformRegistry } from "@/services/space-platform.registry";
-import { createGithubClient } from "libs/github-api";
-import { createGiteeClient } from "libs/gitee-api";
-import { createGitcodeClient } from "libs/gitcode-api/gitcode-client";
+import { createGithubClient, createGiteeClient, createGitcodeClient } from "@dty/git-provider";
 import { Octokit } from "octokit";
 import xbook from "xbook/index";
 import {

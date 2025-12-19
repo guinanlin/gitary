@@ -16,9 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authService } from "@/services/auth.service";
 import { spaceService } from "@/services/space.service";
-import { createGiteeClient } from "libs/gitee-api";
-import { createGithubClient } from "libs/github-api";
-import { createGitcodeClient } from "libs/gitcode-api/gitcode-client";
+import { createGiteeClient, createGithubClient, createGitcodeClient } from "@dty/git-provider";
 import { WeiyunClient } from "@/services/weiyun-client";
 import { WeiyunFolderSelector } from "./weiyun-folder-selector";
 import { Input } from "@/components/ui/input";

@@ -1,4 +1,4 @@
-import { FileSystemOptions, FileItem } from "./git-client";
+import type { FileSystemOptions, FileItem } from "./git-client";
 
 /**
  * 文件系统统计信息
@@ -80,7 +80,7 @@ export interface FileSystem {
   exists(path: string, options?: FileSystemOptions): Promise<boolean>;
 }
 
-export {
+export type {
   FileSystemOptions,
   FileItem
 }; 

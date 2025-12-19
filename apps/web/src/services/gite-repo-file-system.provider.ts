@@ -8,7 +8,7 @@ import {
   FileType,
 } from "@/toolkit/vscode/file-system";
 import { Uri } from "@/toolkit/vscode/uri";
-import { GiteeClient } from "libs/gitee-api";
+import { GiteeClient } from "@dty/git-provider";
 import { stagingService } from "@/services/staging.service";
 
 export class GitRepoFileSystemProvider implements FileSystemProvider {

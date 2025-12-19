@@ -1,5 +1,5 @@
 // Import curated Monaco API + selected language contributions
-import { monaco } from "@/monaco/customMonaco";
+import { monaco, loadLanguage } from "@/monaco/customMonaco";
 import React from "react";
 import { useColorMode } from "@chakra-ui/react";
 
@@ -33,7 +33,8 @@ export const CustomMonacoEditor = (props: Props) => {
     null
   );
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  
+  const [isLanguageLoaded, setIsLanguageLoaded] = React.useState(false);
+
   const isUserEditingRef = React.useRef(false);
   const onChangeRef = React.useRef(onChange);
   const keyBindingsRef = React.useRef(keyBindings);
@@ -57,10 +58,23 @@ export const CustomMonacoEditor = (props: Props) => {
   }, [onMount]);
 
   React.useEffect(() => {
-    if (!containerRef.current) return;
+    let isMounted = true;
+    setIsLanguageLoaded(false);
+    loadLanguage(language).then(() => {
+      if (isMounted) {
+        setIsLanguageLoaded(true);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
+  React.useEffect(() => {
+    if (!containerRef.current || !isLanguageLoaded) return;
 
     const currentTheme = propTheme || (colorMode === "dark" ? "vs-dark" : "vs");
-    
+
     editorRef.current = monaco.editor.create(containerRef.current, {
       value,
       language,
@@ -93,8 +107,9 @@ export const CustomMonacoEditor = (props: Props) => {
       resizeObserver.disconnect();
       changeModelContentSubscription.dispose();
       editorRef.current?.dispose();
+      editorRef.current = null;
     };
-  }, [language, propTheme, colorMode]);
+  }, [isLanguageLoaded, propTheme, colorMode]);
 
   React.useEffect(() => {
     if (editorRef.current && !isUserEditingRef.current) {

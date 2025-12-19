@@ -1,6 +1,6 @@
 import { Base64 } from "js-base64";
-import { FileHelper, GiteeClient, Method } from "libs/git-client.types";
-import { GithubAuthInfo } from "libs/github-api";
+import { FileHelper, GiteeClient, Method } from "../types/compat/git-client.types";
+import type { GithubAuthInfo } from "./github-fs";
 import axios from "redaxios";
 
 export interface IGitcodeUser {
@@ -31,9 +31,6 @@ export interface IGitcodeUser {
   url: string;
 }
 
-// GitCode API:
-// - OAuth authorize/token endpoints are under https://gitcode.com/oauth
-// - REST API is under https://api.gitcode.com/api/v5
 const API_BASE_URL = "https://api.gitcode.com/api/v5";
 const OAUTH_BASE_URL = "https://gitcode.com/oauth";
 
@@ -44,11 +41,8 @@ export const getGitcodeLoginUrl = ({
   redirectUri: string;
   clientId: string;
 }) => {
-  // Per docs:
-  // GET https://gitcode.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}
   const authorizeUrl = `${OAUTH_BASE_URL}/authorize`;
   const scope = encodeURIComponent(
-    // include read_projects to satisfy GitCode repo APIs
     "all_user all_repository read_projects"
   );
   const state = encodeURIComponent(JSON.stringify({ platform: "gitcode" }));
@@ -74,14 +68,11 @@ export const getGitcodeAccessToken = async ({
   clientSecret: string;
   redirectUri: string;
 }): Promise<GithubAuthInfo> => {
-  // Per docs:
-  // POST https://gitcode.com/oauth/token?grant_type=authorization_code&code={code}&client_id={client_id}&client_secret={client_secret}
   const proxyUrl = `${OAUTH_BASE_URL}/token?grant_type=authorization_code&code=${encodeURIComponent(
     code
   )}&client_id=${encodeURIComponent(
     clientId
   )}&client_secret=${encodeURIComponent(clientSecret)}`;
-  // Reuse the same CORS proxy pattern as GitHub
   const url = `https://proxy.agentverse.cc/?${proxyUrl}`;
   const res = await axios.post(url);
   return res.data;
@@ -99,8 +90,6 @@ export const refreshGitcodeAccessToken = async ({
   scope: string;
   token_type: string;
 }> => {
-  // Per docs:
-  // POST https://gitcode.com/oauth/token?grant_type=refresh_token&refresh_token={refresh_token}
   const proxyUrl = `${OAUTH_BASE_URL}/token?grant_type=refresh_token&refresh_token=${encodeURIComponent(
     refreshToken
   )}`;
@@ -310,7 +299,6 @@ export const createGitcodeClient = ({
     },
     get: async ({ owner, repo, path }) => {
       const r = await getPathInfo({ owner, repo, path });
-      // Align with FileResponse expectations: attach decoded/typed data fields.
       (r.data as any).rawContent = r.data.content;
       (r.data as any).uint8array = Base64.toUint8Array(
         (r.data as any).rawContent
@@ -325,7 +313,16 @@ export const createGitcodeClient = ({
     User,
     Repo,
     Branch: {
-      // Not currently used in UI; keep minimal surface
+      get: async ({ owner, repo, branch }: { owner: string; repo: string; branch: string }) => {
+        return axios.get(URLBuilder.getBranch(owner, repo, branch), {
+          params: prepareParams({
+            access_token: getAccessToken(),
+            owner,
+            repo,
+            branch,
+          }),
+        });
+      },
       getList: async ({ owner, repo }: { owner: string; repo: string }) => {
         return axios.get(URLBuilder.getBranchList(owner, repo), {
           params: prepareParams({
@@ -335,7 +332,19 @@ export const createGitcodeClient = ({
           }),
         });
       },
+      add: async ({ owner, repo, branch, refs = "master" }: { owner: string; repo: string; branch: string; refs?: string }) => {
+        const data = {
+          access_token: getAccessToken(),
+          owner,
+          repo,
+          branch_name: branch,
+          refs,
+        };
+        return submitForm(URLBuilder.createBranch(owner, repo), data);
+      },
     },
     File,
   } as unknown as GiteeClient;
 };
+
+export type { GiteeClient } from "../types/compat/git-client.types";

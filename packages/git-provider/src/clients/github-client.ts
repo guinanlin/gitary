@@ -1,117 +1,9 @@
 import { Base64 } from "js-base64";
-import { ApiResponse, FileHelper, Method } from "libs/git-client.types";
-import { GithubAuthInfo } from "libs/github-api/github-fs";
-import { RepoResponse } from "libs/repo";
+import { ApiResponse, FileHelper, Method } from "../types/compat/git-client.types";
+import { GithubAuthInfo } from "./github-fs";
+import { RepoResponse } from "../types/compat/repo";
 import { Octokit } from "octokit";
 import axios from "redaxios";
-// type Method =
-//   | "get"
-//   | "post"
-//   | "put"
-//   | "patch"
-//   | "delete"
-//   | "options"
-//   | "head"
-//   | "GET"
-//   | "POST"
-//   | "PUT"
-//   | "PATCH"
-//   | "DELETE"
-//   | "OPTIONS"
-//   | "HEAD";
-// type ApiResponse<T> = {
-//   status: number;
-//   statusText: string;
-//   config: any;
-//   data: T;
-//   headers: Headers;
-//   redirect: boolean;
-//   url: string;
-//   type: ApiResponseType;
-//   body: ReadableStream<Uint8Array> | null;
-//   bodyUsed: boolean;
-// };
-
-// interface FileApiResponse {
-//   content: string;
-//   sha: string;
-//   name: string;
-//   path: string;
-//   download_url: string;
-//   html_url: string;
-//   size: number;
-//   type: "file" | "dir";
-//   [name: string]: any;
-// }
-// type FileItemApiResponse = Pick<
-//   FileApiResponse,
-//   "name" | "path" | "download_url" | "html_url" | "type" | "sha"
-// >;
-// interface FileHelper {
-//   get: ({
-//     owner,
-//     repo,
-//     path,
-//   }: {
-//     owner: any;
-//     repo: any;
-//     path: any;
-//   }) => Promise<ApiResponse<FileApiResponse>>;
-//   getInfo: ({
-//     owner,
-//     repo,
-//     path,
-//   }: {
-//     owner: any;
-//     repo: any;
-//     path: any;
-//   }) => Promise<FileItemApiResponse[]>;
-//   add: ({
-//     owner,
-//     repo,
-//     path,
-//     content,
-//     message,
-//     branch,
-//   }: {
-//     owner: any;
-//     repo: any;
-//     path: any;
-//     content: any;
-//     message?: any;
-//     branch?: string | undefined;
-//   }) => Promise<ApiResponse<any>>;
-//   update: ({
-//     owner,
-//     repo,
-//     path,
-//     content,
-//     message,
-//     branch,
-//     sha,
-//   }: {
-//     owner: any;
-//     repo: any;
-//     path: any;
-//     content: any;
-//     message?: any;
-//     branch?: string | undefined;
-//     sha?: null | undefined;
-//   }) => Promise<ApiResponse<any>>;
-//   delete: ({
-//     owner,
-//     repo,
-//     path,
-//     sha,
-//     message,
-//   }: {
-//     owner: any;
-//     repo: any;
-//     path: any;
-//     sha?: string;
-//     message?: any;
-//   }) => Promise<ApiResponse<any>>;
-// }
 
 export const getGithubLoginUrl = ({
   redirectUri,
@@ -247,11 +139,6 @@ export const createGithubClient = ({
 }: {
   getAccessToken: () => string | undefined;
 }) => {
-  // let access_token = accessToken;
-  // const setAccessToken = (accessToken) => {
-  //   access_token = accessToken;
-  // };
-  // const getAccessToken = () => access_token;
   const submitForm = async (
     url,
     data,
@@ -279,14 +166,12 @@ export const createGithubClient = ({
       headers: {
         Authorization: `Bearer ${getAccessToken()}`,
       },
-      // headers: { "Content-Type": "multipart/form-data" },
     } as any);
   };
 
   const User = {
     getInfo: async () => {
       return axios.get(URLBuilder.getUserInfo(), {
-        // params: prepareParams({ access_token: getAccessToken() }),
         headers: {
           Authorization: `Bearer ${getAccessToken()}`,
         },
@@ -301,7 +186,6 @@ export const createGithubClient = ({
     },
     add: async ({ repo }) => {
       const data = {
-        //
         name: repo,
         has_issues: true,
         has_wiki: true,
@@ -375,7 +259,6 @@ export const createGithubClient = ({
 
       const data = { owner, path, content, message, branch, repo };
       return octokit.rest.repos.createOrUpdateFileContents(data) as any;
-      // return submitForm(URLBuilder.createFile(owner, repo, path), data) as any;
     },
     update: async ({
       owner,
@@ -438,5 +321,3 @@ export default {
   getLoginUrl: getGithubLoginUrl,
   createGiteeClient: createGithubClient,
 };
-
-export type GiteeClient = ReturnType<typeof createGithubClient>;

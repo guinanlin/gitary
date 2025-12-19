@@ -10,11 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");
 const projectRoot = resolve(__dirname, "../../..");
 const isPreview = process.argv.includes("preview") || process.env.VITE_PREVIEW === "true";
+const gitProviderPath = resolve(__dirname, "../../../packages/git-provider/src/index.ts");
 
 console.log("dependencies", dependencies);
 console.log("isPreview:", isPreview, "projectRoot:", projectRoot);
 console.log("__dirname:", __dirname);
 console.log("dist path:", resolve(projectRoot, "dist"));
+console.log("git-provider path:", gitProviderPath);
 
 export default defineConfig({
   root: isPreview ? projectRoot : resolve(__dirname, ".."),
@@ -83,6 +85,10 @@ export default defineConfig({
       {
         find: /^rxjs\/(.*)$/,
         replacement: resolve(__dirname, "../node_modules/rxjs/$1"),
+      },
+      {
+        find: "@dty/git-provider",
+        replacement: gitProviderPath,
       },
     ],
   },

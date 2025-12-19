@@ -9,7 +9,7 @@ import {
   getGiteeAccessToken,
   getGiteeLoginUrl,
   refreshGiteeAccessToken,
-} from "libs/gitee-api";
+} from "@dty/git-provider";
 import { createPlugin } from "xbook/common/createPlugin";
 
 export default createPlugin({

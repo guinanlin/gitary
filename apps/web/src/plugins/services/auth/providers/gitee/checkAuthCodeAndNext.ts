@@ -2,8 +2,7 @@ import { authService } from "@/services/auth.service";
 import { appInfo } from "@/plugins/services/auth/providers/gitee/appInfo";
 import { DataStore } from "@/toolkit/factories/dataStore";
 import { SpaceDef } from "@/toolkit/types/space";
-import { getGiteeLoginUrl } from "libs/gitee-api";
-import giteeClient from "libs/gitee-api/gitee-client";
+import { getGiteeLoginUrl, getGiteeAccessToken } from "@dty/git-provider";
 import { createPlugin } from "xbook/common/createPlugin";
 import history from "xbook/common/history";
 
@@ -11,8 +10,7 @@ export const listenGiteeLoginCallback = createPlugin({
   initilize(xbook) {
     const code = history.location.query["code"];
     if (code) {
-      giteeClient
-        .getGiteeAccessToken({
+      getGiteeAccessToken({
           clientId: appInfo.clientId,
           clientSecret: appInfo.clientSecret,
           redirectUri: appInfo.redirectUri,
@@ -77,8 +75,7 @@ export const CheckAuthCodeAndNext = {
     const { platform, username } = taskData;
     const code = history.location.query["code"];
     if (code) {
-      giteeClient
-        .getGiteeAccessToken({
+      getGiteeAccessToken({
           clientId: appInfo.clientId,
           clientSecret: appInfo.clientSecret,
           redirectUri: appInfo.redirectUri,

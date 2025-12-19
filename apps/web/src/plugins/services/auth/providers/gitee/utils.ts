@@ -1,6 +1,6 @@
 import { appInfo } from "@/plugins/services/auth/providers/gitee/appInfo";
 import { JSONStorage } from "@/toolkit/factories/treeStorage";
-import { getGiteeAccessToken } from "libs/gitee-api/gitee-client";
+import { getGiteeAccessToken } from "@dty/git-provider";
 
 export var getUrlParam = function (name) {
   const queryString = window.location.search;

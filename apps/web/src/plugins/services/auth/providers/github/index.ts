@@ -9,7 +9,7 @@ import {
   getGithubAccessToken,
   getGithubLoginUrl,
   refreshGithubAccessToken,
-} from "libs/github-api";
+} from "@dty/git-provider";
 import { createPlugin } from "xbook/common/createPlugin";
 
 export default createPlugin({

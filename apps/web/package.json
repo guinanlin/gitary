@@ -20,6 +20,7 @@
     "@chakra-ui/icons": "^2.1.0",
     "@chakra-ui/react": "^2.8.0",
     "@dty/ai-assistant-core": "workspace:*",
+    "@dty/git-provider": "workspace:*",
     "@emotion/css": "^11.11.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
@@ -119,6 +120,7 @@
     "sass": "^1.66.1",
     "tailwindcss": "^3.4.4",
     "ts-jest": "^29.2.5",
+    "tslib": "^2.8.1",
     "typescript": "^5.0.2",
     "vite": "npm:rolldown-vite@latest",
     "vite-plugin-eslint": "^1.8.1",
@@ -126,4 +128,3 @@
     "vscode": "^1.1.37"
   }
 }
-
